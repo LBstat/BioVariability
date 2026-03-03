@@ -1,0 +1,545 @@
+---
+title: 'Integrative Modeling of Milk Quality: Evaluating the Impact of Herd Health
+  Risks on Bacterial Loads and Somatic Cell Counts'
+author: "Luca Bernardi"
+date: "2026-02-27"
+output: html_document
+---
+
+```{r, exploration.1, echo = FALSE, warning = FALSE, fig.width = 12}
+source("settings.R")
+source("source_all.R")
+
+data <- read_excel("data/raw/Latte.xlsx")
+setDT(data)
+
+miss_var_summary(data)
+
+dt <- data[order(Farm)][,
+  .(meanLOG_CBT = mean(`Log CBT`, na.rm = TRUE), sdLOG_CBT = sd(`Log CBT`, na.rm = TRUE)), by = .(Year, Season)]
+dt <- dt[order(Year)]
+
+ggplot(data = dt, mapping = aes(x = Year, y = meanLOG_CBT, colour = Season)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(title = "Mean variability of Log CBT between years",
+       x = "Year",
+       y = "Mean Log CBT"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+    axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+    panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+    panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+  )
+
+table(data$Year)
+
+cor(data$TBC, data$`Log SCC`, use = "complete.obs")
+# No correlation between somatic cell count and total bacterial count
+
+mu <- mean(data$`Log CBT`, na.rm = TRUE)
+var <- var(data$`Log CBT`, na.rm = TRUE)
+
+x <- seq(min(data$`Log CBT`, na.rm = TRUE), max(data$`Log CBT`, na.rm = TRUE), length.out = 500)
+df <- data.frame(x = x, y = dnorm(x, mean = mu, sd = sqrt(var)))
+
+p1 <- ggplot(data, aes(x = `Log CBT`)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
+  geom_line(data = df, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
+  labs(title = "Observed distribution vs. Normal distribution",
+       x = "Log CBT",
+       y = "Desnity") +
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+    )
+
+mu <- mean(data$`Log SCC`, na.rm = TRUE)
+var <- var(data$`Log SCC`, na.rm = TRUE)
+
+x <- seq(min(data$`Log SCC`, na.rm = TRUE), max(data$`Log SCC`, na.rm = TRUE), length.out = 500)
+df <- data.frame(x = x, y = dnorm(x, mean = mu, sd = sqrt(var)))
+
+p2 <- ggplot(data, aes(x = `Log SCC`)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
+  geom_line(data = df, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
+  labs(title = "Observed distribution vs. Normal distribution",
+       x = "Log SCC",
+       y = "Density") +
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+    )
+
+wp <- p1 | p2
+wp
+
+# ggsave(
+#   filename = "plot/distributions.png",
+#   plot = wp,
+#   width = 12,
+#   height = 6,
+#   dpi = 300
+#   )
+```
+
+```{r, preparation.1, echo = FALSE, warning = FALSE, fig.width = 12}
+dt_analysis <- na.omit(data) # Data handling of missing values
+
+dt_analysis$`Risk - IBR` <- as.factor(dt_analysis$`Risk - IBR`)
+dt_analysis$`Risk - AGAL` <- as.factor(dt_analysis$`Risk - AGAL`)
+dt_analysis$`Risk - PT` <- as.factor(dt_analysis$`Risk - PT`)
+
+dt_analysis$Season <- as.factor(dt_analysis$Season)
+levels(dt_analysis$Season) <- c("Autumn", "Spring", "Summer", "Winter")
+
+dt_analysis$Year <- as.factor(dt_analysis$Year)
+
+dt_analysis$Year_num <- as.numeric(dt_analysis$Year) - min(as.numeric(dt_analysis$Year))
+
+dt_test <- dt_analysis[TBC > 1000 & SCC > 3000]
+dt <- dt_analysis[TBC > 100000 & SCC > 300000]
+
+datasets <- list(dt_analysis = dt_analysis, dt_test = dt_test, dt = dt)
+
+mu <- mean(dt_test$`Log CBT`, na.rm = TRUE)
+var <- var(dt_test$`Log CBT`, na.rm = TRUE)
+
+x <- seq(min(dt_test$`Log CBT`, na.rm = TRUE), max(dt_test$`Log CBT`, na.rm = TRUE), length.out = 500)
+df <- data.frame(x = x, y = dnorm(x, mean = mu, sd = sqrt(var)))
+
+p1 <- ggplot(dt_test, aes(x = `Log CBT`)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
+  geom_line(data = df, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
+  labs(title = "Observed distribution vs. Normal distribution",
+       x = "Log CBT",
+       y = "Desnity") +
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+    )
+
+mu <- mean(dt_test$`Log SCC`, na.rm = TRUE)
+var <- var(dt_test$`Log SCC`, na.rm = TRUE)
+
+x <- seq(min(dt_test$`Log SCC`, na.rm = TRUE), max(dt_test$`Log SCC`, na.rm = TRUE), length.out = 500)
+df <- data.frame(x = x, y = dnorm(x, mean = mu, sd = sqrt(var)))
+
+p2 <- ggplot(dt_test, aes(x = `Log SCC`)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
+  geom_line(data = df, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
+  labs(title = "Observed distribution vs. Normal distribution",
+       x = "Log SCC",
+       y = "Density") +
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+    )
+
+p1 | p2
+```
+
+```{r, analysis.1, echo = FALSE, warning = FALSE, fig.width = 12}
+if (!file.exists("data/results/glm models.rds")) {
+  glm_results <- list(
+    LINmodCBT = glm(`Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = gaussian, data = dt_analysis),
+
+    LINmodSCC = glm(`Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = gaussian, data = dt_analysis)
+  )
+
+  saveRDS(glm_results, file = "data/results/glm models.rds")
+}
+
+if (!file.exists("data/results/mixed models.rds")) {
+  mixed_models_results <- list(
+    LINmixedFarmCBT = lmer(formula = `Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), data = dt_analysis, REML = FALSE),
+
+    LINmixedYear.FarmCBT = lmer(formula = `Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), data = dt_analysis, REML = FALSE),
+
+    LINmixedFarmSCC = lmer(formula = `Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), data = dt_analysis, REML = FALSE),
+
+    LINmixedYear.FarmSCC = lmer(formula = `Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), data = dt_analysis, REML = FALSE)
+  )
+
+  saveRDS(mixed_models_results, file = "data/results/mixed models.rds")
+}
+
+if (!file.exists("data/results/gamlss models.rds")) {
+  plan(multisession, workers = parallel::detectCores() - 1)
+
+  gamlss_results <- future_lapply(
+  X = model_gamlss,
+  FUN = run_model_safely,
+  data = datasets,                           # This goes to the function
+  future.packages = "gamlss",                # This tells future what to load
+  future.seed = TRUE,                        # Required for random processes
+  future.globals = list(datasets = datasets) # Explicitly bundle the data
+  )
+
+  saveRDS(gamlss_results, file = "data/results/gamlss models.rds")
+}
+
+glm_results <- readRDS(file = "data/results/glm models.rds")
+mixed_models_results <- readRDS(file = "data/results/mixed models.rds")
+gamlss_results <- readRDS(file = "data/results/gamlss models.rds")
+```
+
+```{r, results.1, echo = FALSE, warning = FALSE, fig.width = 12}
+objects_CBT <- list(
+  "Linear Model" = glm_results$LINmodCBT,
+  "Linear Mixed Model 1|Farm" = mixed_models_results$LINmixedFarmCBT,
+  "Linear Mixed Model Year|Farm" = mixed_models_results$LINmixedYear.FarmCBT,
+  "GAMLSS Linear Model 1|Farm" = gamlss_results$LINFarmCBT,
+  "GAMLSS Linear Model Year|Farm" = gamlss_results$LINYear.FarmCBT,
+  "GAMLSS Box-Cox t distribution 1|Farm" = gamlss_results$BCTFarmCBT,
+  "GAMLSS Box-Cox t distribution Year|Farm" = gamlss_results$BCTYear.FarmCBT,
+  "GAMLSS Skew t distribution type 2 1|Farm" = gamlss_results$ST2FarmCBT,
+  "GAMLSS Skew t distribution type 2 Year|Farm" = gamlss_results$ST2Year.FarmCBT
+)
+
+model_selection_criteria(objects_CBT)
+
+VarCorr(mixed_models_results$LINmixedFarmCBT)
+VarCorr(mixed_models_results$LINmixedYear.FarmCBT)
+
+getSmo(gamlss_results$BCTFarmCBT)
+getSmo(gamlss_results$BCTYear.FarmCBT)
+getSmo(gamlss_results$ST2FarmCBT)
+getSmo(gamlss_results$ST2Year.FarmCBT)
+```
+
+```{r, results.2, echo = FALSE, warning = FALSE, fig.width = 12}
+#autoplot_gamlss(gamlss_results$LinYear.FarmCBT, summaries = FALSE, model = "LinYear.Farm - CBT")
+#autoplot_gamlss(gamlss_results$BCTYear.FarmCBT, summaries = FALSE, model = "BCTYear.Farm - CBT")
+```
+
+```{r, results.3, echo = FALSE, warning = FALSE, fig.width = 12}
+#summ1_cbt <- summary(gamlss_results$BCTYear.FarmCBT)
+#summ2_cbt <- summary(gamlss_results$BCTTestCBT)
+
+#tab_cbt <- round(cbind(summ1_cbt, summ2_cbt), 4)
+#delta <- ((abs(tab_cbt[, 1]) - abs(tab_cbt[, 5])) / abs(tab_cbt[, 1])) * 100
+
+#tab_cbt <- cbind(tab_cbt, delta)
+#tab_cbt
+```
+
+```{r, results.4, echo = FALSE, warning = FALSE, fig.width = 12}
+variables <- list("Season", "Risk - IBR", "Risk - PT", "Risk - AGAL")
+
+plots <- lapply(variables, function(x) {
+  plot <- ggplot(dt_analysis, aes(y = `Log CBT`, fill = .data[[x]])) +
+    geom_boxplot(outlier.shape = 1, alpha = 0.6)
+
+  if (x == "Season") {
+    p <- scale_fill_manual(values = c("Spring" = "#9DC183", "Summer" = "#DAA520", "Autumn" = "#9B1B30", "Winter" = "#003366"))
+  }
+  if (x == "Risk - IBR") {
+    p <- scale_fill_manual(values = c("Low risk" = "#9DC183", "High risk" = "#9B1B30", "Medium risk" = "#003366"))
+  }
+  if (x == "Risk - PT") {
+    p <- scale_fill_manual(values = c("Low risk"="#9DC183", "High risk"="#9B1B30", "Medium risk"="#003366"))
+  }
+  if (x == "Risk - AGAL") {
+    p <- scale_fill_manual(values = c("Low risk"="#9DC183", "High risk"="#9B1B30"))
+  }
+
+  plot <- plot +
+    p +
+    labs(title = "Log CBT",
+         x = x,
+         y = "Log CBT",
+         fill = x
+         ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+      )
+
+  filename <- paste0("Boxplot log CBT: ", x, ".png")
+
+  ggsave(
+    filename = file.path("plot/", filename),
+    plot = plot,
+    width = 12,
+    height = 6,
+    dpi = 300
+    )
+
+  plot
+  })
+
+plots[[1]]
+plots[[2]] | plots[[3]] | plots[[4]]
+```
+
+```{r, results.5, echo = FALSE, warning = FALSE, fig.width = 12}
+objects_SCC <- list(
+  "Linear Model" = glm_results$LINmodSCC,
+  "Linear Mixed Model 1|Farm" = mixed_models_results$LINmixedFarmSCC,
+  "Linear Mixed Model Year|Farm" = mixed_models_results$LINmixedYear.FarmSCC,
+  "GAMLSS Linear Model 1|Farm" = gamlss_results$LINFarmSCC,
+  "GAMLSS Linear Model Year|Farm" = gamlss_results$LINYear.FarmSCC,
+  "GAMLSS Box-Cox t distribution 1|Farm" = gamlss_results$BCTFarmSCC,
+  "GAMLSS Box-Cox t distribution Year|Farm" = gamlss_results$BCTYear.FarmSCC,
+  "GAMLSS Skew t distribution type 2 1|Farm" = gamlss_results$ST2FarmSCC,
+  "GAMLSS Skew t distribution type 2 Year|Farm" = gamlss_results$ST2Year.FarmSCC
+)
+
+model_selection_criteria(objects_SCC)
+
+VarCorr(mixed_models_results$LINmixedFarmSCC)
+VarCorr(mixed_models_results$LINmixedYear.FarmSCC)
+
+getSmo(gamlss_results$BCTFarmSCC)
+getSmo(gamlss_results$BCTYear.FarmSCC)
+getSmo(gamlss_results$ST2FarmSCC)
+getSmo(gamlss_results$ST2Year.FarmSCC)
+```
+
+```{r, results.6, echo = FALSE, warning = FALSE, fig.width = 12}
+#autoplot_gamlss(gamlss_results$LinYear.FarmSCC, summaries = FALSE, model = "LinYear.Farm - SCC")
+#autoplot_gamlss(gamlss_results$BCTYear.FarmSCC, summaries = FALSE, model = "BCTYear.Farm - SCC")
+```
+
+```{r, results.7, echo = FALSE, warning = FALSE, fig.width = 12}
+#summ1_scc <- summary(gamlss_results$BCTYear.FarmSCC)
+#summ2_scc <- summary(gamlss_results$BCTTestSCC)
+
+#tab_scc <- round(cbind(summ1_scc, summ2_scc), 4)
+#delta <- ((abs(tab_scc[, 1]) - abs(tab_scc[, 5])) / abs(tab_scc[, 1])) * 100
+
+#tab_scc <- cbind(tab_scc, delta)
+#tab_scc
+```
+
+```{r, results.8, echo = FALSE, warning = FALSE, fig.width = 12}
+variables <- list("Season", "Risk - IBR", "Risk - PT", "Risk - AGAL")
+
+plots <- lapply(variables, function(x) {
+  plot <- ggplot(dt_analysis, aes(y = `Log SCC`, fill = .data[[x]])) +
+    geom_boxplot(outlier.shape = 1, alpha = 0.6)
+
+  if (x == "Season") {
+    p <- scale_fill_manual(values = c("Spring" = "#9DC183", "Summer" = "#DAA520", "Autumn" = "#9B1B30", "Winter" = "#003366"))
+  }
+  if (x == "Risk - IBR") {
+    p <- scale_fill_manual(values = c("Low risk" = "#9DC183", "High risk" = "#9B1B30", "Medium risk" = "#003366"))
+  }
+  if (x == "Risk - PT") {
+    p <- scale_fill_manual(values = c("Low risk"="#9DC183", "High risk"="#9B1B30", "Medium risk"="#003366"))
+  }
+  if (x == "Risk - AGAL") {
+    p <- scale_fill_manual(values = c("Low risk"="#9DC183", "High risk"="#9B1B30"))
+  }
+
+  plot <- plot +
+    p +
+    labs(title = "Log SCC",
+         x = x,
+         y = "Log SCC",
+         fill = x
+         ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+      )
+
+  filename <- paste0("Boxplot log SCC: ", x, ".png")
+
+  ggsave(
+    filename = file.path("plot/", filename),
+    plot = plot,
+    width = 12,
+    height = 6,
+    dpi = 300
+    )
+
+  plot
+  })
+
+plots[[1]]
+plots[[2]] | plots[[3]] | plots[[3]]
+```
+
+```{r, preparation.2, echo = FALSE, warning = FALSE, fig.width = 12}
+threshold <- min(dt$`Log CBT`)
+
+mu  <- mean(dt$`Log CBT` - threshold, na.rm = TRUE)
+var <- var(dt$`Log CBT` - threshold, na.rm = TRUE)
+
+shape <- (mu^2) / var
+rate <- mu / var
+
+x_seq <- seq(threshold, max(dt$`Log CBT`, na.rm = TRUE), length.out = 500)
+df_gamma <- data.frame(x = x_seq, y = dgamma(x_seq - threshold, shape = shape, rate = rate))
+
+p1 <- ggplot(dt, aes(x = `Log CBT`)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
+  geom_line(data = df_gamma, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
+  labs(title = "Observed distribution vs. Shifted Gamma distribution",
+       x = "Log CBT",
+       y = "Density") +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+    axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+    panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+    panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+  )
+
+threshold <- min(dt$`Log SCC`)
+
+mu  <- mean(dt$`Log SCC` - threshold, na.rm = TRUE)
+var <- var(dt$`Log SCC` - threshold, na.rm = TRUE)
+
+shape <- (mu^2) / var
+rate <- mu / var
+
+x_seq <- seq(threshold, max(dt$`Log SCC`, na.rm = TRUE), length.out = 500)
+df_gamma <- data.frame(x = x_seq, y = dgamma(x_seq - threshold, shape = shape, rate = rate))
+
+p2 <- ggplot(dt, aes(x = `Log SCC`)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
+  geom_line(data = df_gamma, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
+  labs(title = "Observed distribution vs. Shifted Gamma distribution",
+       x = "Log CBT",
+       y = "Density") +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+    axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+    panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+    panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+  )
+
+p1 | p2
+```
+
+```{r, analysis.2, echo = FALSE, warning = FALSE, fig.width = 12}
+if (!file.exists("data/results/glm models restricted.rds")) {
+  glm_restricted <- list(
+    GammaTBC = glm(`Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = Gamma(link = "identity"), data = dt),
+
+    GammaSCC = glm(`Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = Gamma(link = "identity"), data = dt)
+  )
+  
+  saveRDS(glm_results, file = "data/results/glm models restricted.rds")
+}
+
+if (!file.exists("data/results/mixed models restricted.rds")) {
+  mixed_models_restricted <- list(
+    GammaMixedFarmTBC = glmer(formula = `Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
+
+    GammaMixedYear.FarmTBC = glmer(formula = `Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), family = Gamma(link = "identity"), data = dt),
+
+    GammaMixedFarmSCC = glmer(formula = `Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
+
+    GammaMixedYear.FarmSCC = glmer(formula = `Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), Gamma(link = "identity"), data = dt)
+  )
+
+  saveRDS(mixed_models_results, file = "data/results/mixed models restricted.rds")
+}
+
+if (!file.exists("data/results/gamlss models restricted.rds")) {
+  plan(multisession, workers = parallel::detectCores() - 1)
+
+  gamlss_restricted <- future_lapply(
+    X = models_gamlss_restricted,
+    FUN = run_model_safely,
+    data = datasets,                           # This goes to the function
+    future.packages = "gamlss",                # This tells future what to load
+    future.seed = TRUE,                        # Required for random processes
+    future.globals = list(datasets = datasets) # Explicitly bundle the data
+  )
+
+  saveRDS(gamlss_results, file = "data/results/gamlss models restricted.rds")
+}
+
+glm_restricted <- readRDS(file = "data/results/glm models restricted.rds")
+mixed_models_restricted <- readRDS(file = "data/results/mixed models restricted.rds")
+gamlss_restricted <- readRDS(file = "data/results/gamlss models restricted.rds")
+```
+
+```{r, results.9, echo = FALSE, warning = FALSE, fig.width = 12}
+objects_restricted_CBT <- list(
+  "Gamma Model" = glm_restricted$GammaTBC,
+  "Gamma Mixed Model 1|Farm" = mixed_models_restricted$GammaMixedFarmTBC,
+  "Gamma Mixed Model Year|Farm" = mixed_models_restricted$GammaMixedYear.FarmTBC,
+  "GAMLSS Gamma Model 1|Farm" = gamlss_restricted$GammaFarmTBC,
+  "GAMLSS Gamma Model Year|Farm" = gamlss_restricted$GammaYear.FarmTBC,
+  "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaFarmTBC,
+  "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaYear.FarmTBC,
+  "GAMLSS Exponential Gaussian 1|Farm" = gamlss_restricted$ExGaussFarmTBC,
+  "GAMLSS Exponential Gaussian Year|Farm" = gamlss_restricted$ExGaussYear.FarmTBC
+)
+
+model_selection_criteria(objects_restricted_CBT)
+
+VarCorr(mixed_models_restricted$GammaMixedFarmTBC)
+VarCorr(mixed_models_restricted$GammaMixedYear.FarmTBC)
+
+getSmo(gamlss_restricted$GammaFarmTBC)
+getSmo(gamlss_restricted$GammaYear.FarmTBC)
+getSmo(gamlss_restricted$GeneralizedGammaFarmTBC)
+getSmo(gamlss_restricted$GeneralizedGammaYear.FarmTBC)
+getSmo(gamlss_restricted$ExGaussFarmTBC)
+getSmo(gamlss_restricted$ExGaussYear.FarmTBC)
+```
+
+```{r, results.10, echo = FALSE, warning = FALSE, fig.width = 12}
+objects_restricted_SCC <- list(
+  "Gamma Model" = glm_restricted$GammaSCC,
+  "Gamma Mixed Model 1|Farm" = mixed_models_restricted$GammaMixedFarmSCC,
+  "Gamma Mixed Model Year|Farm" = mixed_models_restricted$GammaMixedYear.FarmSCC,
+  "GAMLSS Gamma Model 1|Farm" = gamlss_restricted$GammaFarmSCC,
+  "GAMLSS Gamma Model Year|Farm" = gamlss_restricted$GammaYear.FarmSCC,
+  "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaFarmSCC,
+  "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaYear.FarmSCC,
+  "GAMLSS Exponential Gaussian 1|Farm" = gamlss_restricted$ExGaussFarmSCC,
+  "GAMLSS Exponential Gaussian Year|Farm" = gamlss_restricted$ExGaussYear.FarmSCC
+)
+
+model_selection_criteria(objects_restricted_SCC)
+
+VarCorr(mixed_models_restricted$GammaMixedFarmSCC)
+VarCorr(mixed_models_restricted$GammaMixedYear.FarmSCC)
+
+getSmo(gamlss_restricted$GammaFarmSCC)
+getSmo(gamlss_restricted$GammaYear.FarmSCC)
+getSmo(gamlss_restricted$GeneralizedGammaFarmSCC)
+getSmo(gamlss_restricted$GeneralizedGammaYear.FarmSCC)
+getSmo(gamlss_restricted$ExGaussFarmSCC)
+getSmo(gamlss_restricted$ExGaussYear.FarmSCC)
+```
+
+
