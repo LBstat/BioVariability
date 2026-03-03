@@ -1,5 +1,5 @@
 
-run_model_safely <- function(spec, data) {
+run_model_safely <- function(spec, data, optimizer = "nlimnb") {
   require(gamlss)
 
   # 1. Get the data
@@ -59,43 +59,73 @@ run_model_safely <- function(spec, data) {
 
 model_selection_criteria <- function(obj) {
   warning("Models should be compared only if they share the same response variable")
-
-  message("Computation of selection criteria... Randomized Quantile Residuals")
-
-  # Assertions
-  assertList(obj, names = "named")
-  lapply(obj, function(x) {
-    assert(
-      checkClass(x, classes = "glm"),
-      checkClass(x, classes = "lmerMod"),
-      checkClass(x, classes = "glmerMod"),
-      checkClass(x, classes = "gamlss"),
-      combine = "or"
-    )
-  })
-
-  res_list <- lapply(obj, function(x) {
-    res <- if(inherits(x, "gamlss")) residuals(x) else residuals(x, type = "pearson")
-
-    clean_res <- if (inherits(x, "gamlss")) {
-      # GAMLSS -- > extracts already randomized quantile residuals
-      as.numeric(residuals(x))
-
-    } else if (inherits(x, "glmerMod")) {
-      # glmerMod --> use of DHARMa package to derive uniform residuals
-      sim <- DHARMa::simulateResiduals(x, n = 250)
-
-      # qnorm transforms residuals in standard normal residuals
-      qnorm(pmax(1e-7, pmin(sim$scaledResiduals, 1 - 1e-7)))
-
-    } else if (inherits(x, "lmerMod") || inherits(x, "lm")) {
-      # Pearson/Standardized residuals already randomized quantile residuals
-      as.numeric(residuals(x, type = "pearson"))
-      
+  message("Computation of selection criteria... Handling successes and failures")
+  
+  # 1. Pre-processing
+  obj_processed <- lapply(obj, function(x) {
+    if (is.list(x) && !inherits(x, c("gamlss", "glmerMod", "lmerMod", "glm", "lm"))) {
+      empty_obj <- "Structurally Unstable Model"
+      class(empty_obj) <- "fail"
+      return(empty_obj)
     } else {
-      # Fallback --> other possible GLMs
-      sim <- DHARMa::simulateResiduals(x, n = 250)
-      qnorm(pmax(1e-7, pmin(sim$scaledResiduals, 1 - 1e-7)))
+      return(x)
+    }
+  })
+  
+  res_list <- lapply(obj_processed, function(x) {
+
+    # Failed model
+    if (inherits(x, "fail")) {
+      return(data.table(
+        Model = NA_character_,
+        AIC = NA_real_,
+        BIC = NA_real_,
+        `Filliben correlation` = NA_real_,
+        `Residual mean` = NA_real_,
+        `Residual variance` = NA_real_,
+        `Residual skewness` = NA_real_,
+        `Residual kurtosis` = NA_real_,
+        Notes = as.character(x)
+      ))
+    }
+
+    clean_res <- tryCatch({
+      if (inherits(x, "gamlss")) {
+        # GAMLSS -- > extracts already randomized quantile residuals
+        as.numeric(residuals(x))
+
+      } else if (inherits(x, "glmerMod")) {
+        # glmerMod --> use of DHARMa package to derive uniform residuals
+        sim <- DHARMa::simulateResiduals(x, n = 250, plot = FALSE)
+
+        # qnorm transforms residuals in standard normal residuals
+        qnorm(pmax(1e-7, pmin(sim$scaledResiduals, 1 - 1e-7)))
+
+      } else if (inherits(x, "lmerMod") || inherits(x, "lm")) {
+        # Pearson/Standardized residuals already randomized quantile residuals
+        as.numeric(residuals(x, type = "pearson"))
+        
+      } else {
+        # Fallback --> other possible GLMs
+        sim <- DHARMa::simulateResiduals(x, n = 250)
+        qnorm(pmax(1e-7, pmin(sim$scaledResiduals, 1 - 1e-7)))
+      }
+    }, error = function(e) { 
+      return(NULL)
+    })
+    
+    # Protezione se i residui sono incalcolabili o assenti
+    if (is.null(clean_res) || all(is.na(clean_res))) {
+      return(data.table(
+        Model = NA_character_,
+        AIC = round(AIC(x), 2),
+        BIC = round(BIC(x), 2),
+        `Filliben correlation` = NA_real_,
+        `Residual mean` = NA_real_,
+        `Residual variance` = NA_real_,
+        `Residual skewness` = NA_real_, 
+        `Residual kurtosis` = NA_real_,
+        Notes = "Converged (Resid. Unstable)"))
     }
 
     w <- tryCatch({
@@ -104,34 +134,38 @@ model_selection_criteria <- function(obj) {
       rep(1, length(clean_res))
     })
 
-    is_ok <- is.finite(res)
+    clean_res <- clean_res[is.finite(clean_res)]
 
-    clean_res <- as.numeric(res)[is_ok]
-    clean_w <- as.numeric(w)[is_ok]
-
-    if (length(clean_res) == 0) stop("No valid residuals found for one of the models")
-
+    n <- length(clean_res)
     sorted_res <- sort(clean_res)
-    n <- length(sorted_res)
+
     theo_q <- qnorm(ppoints(n))
-
     filliben <- cor(sorted_res, theo_q)
-
-    m1 <- round(mean(clean_res), 4)
-    m2 <- round(var(clean_res), 4)
+    
+    m1 <- mean(clean_res)
+    m2 <- var(clean_res)
 
     m3 <- sum((clean_res - m1)^3) / n
     m4 <- sum((clean_res - m1)^4) / n
 
-    skew <- round(sign(m3) * sqrt(abs(m3^2 / m2^3)), 4)
-    kurt <- round(m4 / m2^2, 4)
+    skew <- m3 / (m2^1.5)
+    kurt <- m4 / (m2^2)
 
-    data.table(Model = NA_character_, AIC = AIC(x), BIC = BIC(x), `Filliben correlation` = filliben,
-      `Residual mean` = m1, `Residual variance` = m2, `Residual skewness` = skew, `Residual kurtosis` = kurt)
+    return(data.table(
+      Model = NA_character_,
+      AIC = round(AIC(x), 2),
+      BIC = round(BIC(x), 2),
+      `Filliben correlation` = round(filliben, 4),
+      `Residual mean` = round(m1, 4),
+      `Residual variance` = round(m2, 4),
+      `Residual skewness` = round(skew, 4),
+      `Residual kurtosis` = round(kurt, 4),
+      Notes = "Optimized (Converged)"
+    ))
   })
 
-  dt_final <- rbindlist(res_list)
-  dt_final$Model <- names(obj)
+  dt_final <- rbindlist(res_list, fill = TRUE)
+  dt_final$Model <- names(obj_processed)
 
   return(dt_final)
 }

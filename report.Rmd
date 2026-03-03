@@ -187,12 +187,16 @@ if (!file.exists("data/results/gamlss models.rds")) {
   plan(multisession, workers = parallel::detectCores() - 1)
 
   gamlss_results <- future_lapply(
-  X = model_gamlss,
-  FUN = run_model_safely,
-  data = datasets,                           # This goes to the function
-  future.packages = "gamlss",                # This tells future what to load
-  future.seed = TRUE,                        # Required for random processes
-  future.globals = list(datasets = datasets) # Explicitly bundle the data
+    X = models_gamlss,
+    FUN = function(mod) {
+      run_model_safely(
+        spec = mod,            # model
+        data = datasets        # data
+      )
+    },
+    future.packages = c("gamlss", "nlme"),
+    future.seed = TRUE,
+    future.globals = list(datasets = datasets, run_model_safely = run_model_safely)
   )
 
   saveRDS(gamlss_results, file = "data/results/gamlss models.rds")
@@ -453,7 +457,7 @@ if (!file.exists("data/results/glm models restricted.rds")) {
     GammaSCC = glm(`Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = Gamma(link = "identity"), data = dt)
   )
   
-  saveRDS(glm_results, file = "data/results/glm models restricted.rds")
+  saveRDS(glm_restricted, file = "data/results/glm models restricted.rds")
 }
 
 if (!file.exists("data/results/mixed models restricted.rds")) {
@@ -467,22 +471,27 @@ if (!file.exists("data/results/mixed models restricted.rds")) {
     GammaMixedYear.FarmSCC = glmer(formula = `Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), Gamma(link = "identity"), data = dt)
   )
 
-  saveRDS(mixed_models_results, file = "data/results/mixed models restricted.rds")
+  saveRDS(mixed_models_restricted, file = "data/results/mixed models restricted.rds")
 }
 
 if (!file.exists("data/results/gamlss models restricted.rds")) {
-  plan(multisession, workers = parallel::detectCores() - 1)
+  plan(multisession, workers = 2)
 
   gamlss_restricted <- future_lapply(
     X = models_gamlss_restricted,
-    FUN = run_model_safely,
-    data = datasets,                           # This goes to the function
-    future.packages = "gamlss",                # This tells future what to load
-    future.seed = TRUE,                        # Required for random processes
-    future.globals = list(datasets = datasets) # Explicitly bundle the data
+    FUN = function(mod) {
+      run_model_safely(
+        spec = mod,            # model
+        data = datasets,       # data
+        optimizer = "optim"    # optimizer
+      )
+    },
+    future.packages = c("gamlss", "nlme"),
+    future.seed = TRUE,
+    future.globals = list(datasets = datasets, run_model_safely = run_model_safely)
   )
 
-  saveRDS(gamlss_results, file = "data/results/gamlss models restricted.rds")
+  saveRDS(gamlss_restricted, file = "data/results/gamlss models restricted.rds")
 }
 
 glm_restricted <- readRDS(file = "data/results/glm models restricted.rds")
@@ -498,25 +507,25 @@ objects_restricted_CBT <- list(
   "GAMLSS Gamma Model 1|Farm" = gamlss_restricted$GammaFarmTBC,
   "GAMLSS Gamma Model Year|Farm" = gamlss_restricted$GammaYear.FarmTBC,
   "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaFarmTBC,
-  "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaYear.FarmTBC,
+  "GAMLSS Generalized Gamma Model Year|Farm" = gamlss_restricted$GeneralizedGammaYear.FarmTBC,
   "GAMLSS Exponential Gaussian 1|Farm" = gamlss_restricted$ExGaussFarmTBC,
   "GAMLSS Exponential Gaussian Year|Farm" = gamlss_restricted$ExGaussYear.FarmTBC
 )
 
 model_selection_criteria(objects_restricted_CBT)
 
-VarCorr(mixed_models_restricted$GammaMixedFarmTBC)
-VarCorr(mixed_models_restricted$GammaMixedYear.FarmTBC)
-
 getSmo(gamlss_restricted$GammaFarmTBC)
-getSmo(gamlss_restricted$GammaYear.FarmTBC)
 getSmo(gamlss_restricted$GeneralizedGammaFarmTBC)
-getSmo(gamlss_restricted$GeneralizedGammaYear.FarmTBC)
-getSmo(gamlss_restricted$ExGaussFarmTBC)
-getSmo(gamlss_restricted$ExGaussYear.FarmTBC)
 ```
 
 ```{r, results.10, echo = FALSE, warning = FALSE, fig.width = 12}
+autoplot_gamlss(
+  gamlss_restricted$GeneralizedGammaFarmTBC,
+  summaries = FALSE, model = "GeneralizedGammaYear.Farm - TBC", save = FALSE
+)
+```
+
+```{r, results.11, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_restricted_SCC <- list(
   "Gamma Model" = glm_restricted$GammaSCC,
   "Gamma Mixed Model 1|Farm" = mixed_models_restricted$GammaMixedFarmSCC,
@@ -524,22 +533,27 @@ objects_restricted_SCC <- list(
   "GAMLSS Gamma Model 1|Farm" = gamlss_restricted$GammaFarmSCC,
   "GAMLSS Gamma Model Year|Farm" = gamlss_restricted$GammaYear.FarmSCC,
   "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaFarmSCC,
-  "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaYear.FarmSCC,
+  "GAMLSS Generalized Gamma Model Year|Farm" = gamlss_restricted$GeneralizedGammaYear.FarmSCC,
   "GAMLSS Exponential Gaussian 1|Farm" = gamlss_restricted$ExGaussFarmSCC,
   "GAMLSS Exponential Gaussian Year|Farm" = gamlss_restricted$ExGaussYear.FarmSCC
 )
 
 model_selection_criteria(objects_restricted_SCC)
 
-VarCorr(mixed_models_restricted$GammaMixedFarmSCC)
-VarCorr(mixed_models_restricted$GammaMixedYear.FarmSCC)
-
 getSmo(gamlss_restricted$GammaFarmSCC)
 getSmo(gamlss_restricted$GammaYear.FarmSCC)
 getSmo(gamlss_restricted$GeneralizedGammaFarmSCC)
 getSmo(gamlss_restricted$GeneralizedGammaYear.FarmSCC)
-getSmo(gamlss_restricted$ExGaussFarmSCC)
-getSmo(gamlss_restricted$ExGaussYear.FarmSCC)
 ```
 
+```{r, results.12, echo = FALSE, warning = FALSE, fig.width = 12}
+autoplot_gamlss(
+  gamlss_restricted$GammaYear.FarmSCC,
+  summaries = FALSE, model = "GammaYear.Farm - SCC", save = FALSE
+)
 
+autoplot_gamlss(
+  gamlss_restricted$GeneralizedGammaYear.FarmSCC,
+  summaries = FALSE, model = "GeneralizedGammaYear.Farm - SCC", save = FALSE
+)
+```
