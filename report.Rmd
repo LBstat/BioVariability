@@ -86,12 +86,12 @@ wp <- p1 | p2
 wp
 
 # ggsave(
-#   filename = "plot/distributions.png",
-#   plot = wp,
-#   width = 12,
-#   height = 6,
-#   dpi = 300
-#   )
+#  filename = "plot/distributions.png",
+#  plot = wp,
+#  width = 12,
+#  height = 6,
+#  dpi = 300
+# )
 ```
 
 ```{r, preparation.1, echo = FALSE, warning = FALSE, fig.width = 12}
