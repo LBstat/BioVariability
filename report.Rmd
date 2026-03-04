@@ -221,30 +221,24 @@ objects_CBT <- list(
 )
 
 model_selection_criteria(objects_CBT)
-
-VarCorr(mixed_models_results$LINmixedFarmCBT)
-VarCorr(mixed_models_results$LINmixedYear.FarmCBT)
-
-getSmo(gamlss_results$BCTFarmCBT)
-getSmo(gamlss_results$BCTYear.FarmCBT)
-getSmo(gamlss_results$ST2FarmCBT)
-getSmo(gamlss_results$ST2Year.FarmCBT)
 ```
 
 ```{r, results.2, echo = FALSE, warning = FALSE, fig.width = 12}
-#autoplot_gamlss(gamlss_results$LinYear.FarmCBT, summaries = FALSE, model = "LinYear.Farm - CBT")
-#autoplot_gamlss(gamlss_results$BCTYear.FarmCBT, summaries = FALSE, model = "BCTYear.Farm - CBT")
+autoplot_gamlss(
+  gamlss_results$BCTYear.FarmCBT,
+  summaries = FALSE, model = "BCTYear.Farm - CBT"
+)
+
+autoplot_gamlss(
+  gamlss_results$ST2Year.FarmCBT,
+  summaries = FALSE, model = "ST2Year.Farm - CBT"
+)
 ```
 
 ```{r, results.3, echo = FALSE, warning = FALSE, fig.width = 12}
-#summ1_cbt <- summary(gamlss_results$BCTYear.FarmCBT)
-#summ2_cbt <- summary(gamlss_results$BCTTestCBT)
+summary(gamlss_results$ST2Year.FarmCBT)
 
-#tab_cbt <- round(cbind(summ1_cbt, summ2_cbt), 4)
-#delta <- ((abs(tab_cbt[, 1]) - abs(tab_cbt[, 5])) / abs(tab_cbt[, 1])) * 100
-
-#tab_cbt <- cbind(tab_cbt, delta)
-#tab_cbt
+getSmo(gamlss_results$ST2Year.FarmCBT)
 ```
 
 ```{r, results.4, echo = FALSE, warning = FALSE, fig.width = 12}
