@@ -226,12 +226,12 @@ model_selection_criteria(objects_CBT)
 ```{r, results.2, echo = FALSE, warning = FALSE, fig.width = 12}
 autoplot_gamlss(
   gamlss_results$BCTYear.FarmCBT,
-  summaries = FALSE, model = "BCTYear.Farm - CBT"
+  summaries = FALSE, model = "BCTYear.Farm - CBT", save = FALSE
 )
 
 autoplot_gamlss(
   gamlss_results$ST2Year.FarmCBT,
-  summaries = FALSE, model = "ST2Year.Farm - CBT"
+  summaries = FALSE, model = "ST2Year.Farm - CBT", save = FALSE
 )
 ```
 
@@ -308,30 +308,24 @@ objects_SCC <- list(
 )
 
 model_selection_criteria(objects_SCC)
-
-VarCorr(mixed_models_results$LINmixedFarmSCC)
-VarCorr(mixed_models_results$LINmixedYear.FarmSCC)
-
-getSmo(gamlss_results$BCTFarmSCC)
-getSmo(gamlss_results$BCTYear.FarmSCC)
-getSmo(gamlss_results$ST2FarmSCC)
-getSmo(gamlss_results$ST2Year.FarmSCC)
 ```
 
 ```{r, results.6, echo = FALSE, warning = FALSE, fig.width = 12}
-#autoplot_gamlss(gamlss_results$LinYear.FarmSCC, summaries = FALSE, model = "LinYear.Farm - SCC")
-#autoplot_gamlss(gamlss_results$BCTYear.FarmSCC, summaries = FALSE, model = "BCTYear.Farm - SCC")
+autoplot_gamlss(
+  gamlss_results$BCTYear.FarmSCC,
+  summaries = FALSE, model = "BCTYear.Farm - SCC", save = FALSE
+)
+
+autoplot_gamlss(
+  gamlss_results$ST2Year.FarmSCC,
+  summaries = FALSE, model = "ST2Year.Farm - SCC", save = FALSE
+)
 ```
 
 ```{r, results.7, echo = FALSE, warning = FALSE, fig.width = 12}
-#summ1_scc <- summary(gamlss_results$BCTYear.FarmSCC)
-#summ2_scc <- summary(gamlss_results$BCTTestSCC)
+summary(gamlss_results$ST2Year.FarmSCC)
 
-#tab_scc <- round(cbind(summ1_scc, summ2_scc), 4)
-#delta <- ((abs(tab_scc[, 1]) - abs(tab_scc[, 5])) / abs(tab_scc[, 1])) * 100
-
-#tab_scc <- cbind(tab_scc, delta)
-#tab_scc
+getSmo(gamlss_results$ST2Year.FarmSCC)
 ```
 
 ```{r, results.8, echo = FALSE, warning = FALSE, fig.width = 12}
