@@ -9,7 +9,7 @@ models_gamlss <- list(
 
   LINYear.FarmCBT = list(
     formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ Year_num|Farm),
-    sigma = ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ Year_num|Farm),
+    sigma = ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     family = NO(mu.link = "identity", sigma.link = "log"), data = "dt_analysis"
     ),
 
@@ -21,7 +21,7 @@ models_gamlss <- list(
 
   LINYear.FarmSCC = list(
     formula = `Log SCC` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ Year_num|Farm),
-    sigma = ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ Year_num|Farm),
+    sigma = ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     family = NO(mu.link = "identity", sigma.link = "log"), data = "dt_analysis"
   ),
 
