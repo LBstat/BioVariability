@@ -1,7 +1,4 @@
 
-# Scientific notation
-options(scipen = 999)
-
 # General setting
 library(tidyverse)
 library(readxl)
@@ -12,15 +9,13 @@ library(checkmate)
 library(naniar)
 
 # Data visualization
+library(ggridges)
 library(patchwork)
 library(DHARMa)
 
 # Data analysis
 library(lme4)
-library(glmmTMB)
 library(gamlss)
-library(MASS)
-library(quantreg)
 
 # Parallelization
 library(future.apply)

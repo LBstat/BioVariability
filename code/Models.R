@@ -38,7 +38,7 @@ models_gamlss <- list(
     ),
 
   ST2FarmCBT = list(
-    formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ Year_num|Farm),
+    formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     sigma = ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "dt_analysis"
   ),
