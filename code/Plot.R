@@ -447,7 +447,7 @@ ggplot_coefficients <- function(models, colours = NULL, out_dir = "plot/", save 
 
   for (i in seq_along(models)) {
     if (save) {
-      filename <- paste0(names(models)[[i]], " diagnostics.png")
+      filename <- paste0(names(models)[[i]], " coefficients.png")
       filepath <- file.path(out_dir, filename)
 
       if (file.exists(filepath)) {
@@ -461,7 +461,7 @@ ggplot_coefficients <- function(models, colours = NULL, out_dir = "plot/", save 
 
       ggsave(
         filename = filepath,
-        plot = wp,
+        plot = plot,
         width = 12,
         height = 6,
         dpi = 300
