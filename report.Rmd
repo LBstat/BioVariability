@@ -33,7 +33,7 @@ variables <- list("Season", "Risk - IBR", "Risk - PT", "Risk - AGAL")
 
 palettes <- list(
   "Year" = c("2016" = "#7E57C2", "2017" = "#9575CD", "2018" = "#673AB7", "2019" = "#B39DDB", "2020" = "#512DA8"),
-  "Season" = c(Spring = "#9DC183", Summer = "#9B1B30", Autumn = "#DAA520", Winter = "#003366"),
+  "Season" = c("Spring" = "#9DC183", "Summer" = "#9B1B30", "Autumn" = "#DAA520", "Winter" = "#003366"),
   "Risk - IBR" = c("Low risk" = "#9DC183", "Medium risk" = "#DAA520", "High risk" = "#9B1B30"),
   "Risk - PT" = c("Low risk" = "#9DC183", "Medium risk" = "#DAA520", "High risk" = "#9B1B30"),
   "Risk - AGAL" = c("Low risk" = "#9DC183", "High risk" = "#9B1B30")
@@ -235,21 +235,21 @@ objects_CBT <- list(
   "GAMLSS Box-Cox t distribution Year|Farm" = gamlss_results$BCTYear.FarmCBT,
   "GAMLSS Skew t distribution type 2 1|Farm" = gamlss_results$ST2FarmCBT,
   "GAMLSS Skew t distribution type 2 Year|Farm" = gamlss_results$ST2Year.FarmCBT
-)
+  )
 
 model_selection_criteria(objects_CBT)
 ```
 
 ```{r, results.2, echo = FALSE, warning = FALSE, fig.width = 12}
-autoplot_gamlss(
+ggplot_gamlss_diagnostics(
   gamlss_results$BCTYear.FarmCBT,
   summaries = FALSE, model = "BCTYear.Farm - CBT", save = FALSE
-)
+  )
 
-autoplot_gamlss(
+ggplot_gamlss_diagnostics(
   gamlss_results$ST2Year.FarmCBT,
   summaries = FALSE, model = "ST2Year.Farm - CBT", save = FALSE
-)
+  )
 ```
 
 ```{r, results.3, echo = FALSE, warning = FALSE, fig.width = 12}
@@ -269,27 +269,36 @@ objects_SCC <- list(
   "GAMLSS Box-Cox t distribution Year|Farm" = gamlss_results$BCTYear.FarmSCC,
   "GAMLSS Skew t distribution type 2 1|Farm" = gamlss_results$ST2FarmSCC,
   "GAMLSS Skew t distribution type 2 Year|Farm" = gamlss_results$ST2Year.FarmSCC
-)
+  )
 
 model_selection_criteria(objects_SCC)
 ```
 
 ```{r, results.5, echo = FALSE, warning = FALSE, fig.width = 12}
-autoplot_gamlss(
+ggplot_gamlss_diagnostics(
   gamlss_results$BCTYear.FarmSCC,
   summaries = FALSE, model = "BCTYear.Farm - SCC", save = FALSE
-)
+  )
 
-autoplot_gamlss(
+ggplot_gamlss_diagnostics(
   gamlss_results$ST2Year.FarmSCC,
   summaries = FALSE, model = "ST2Year.Farm - SCC", save = FALSE
-)
+  )
 ```
 
 ```{r, results.6, echo = FALSE, warning = FALSE, fig.width = 12}
-summary(gamlss_results$ST2Year.FarmSCC)
+summary(gamlss_results$BCTYear.FarmSCC)
 
-getSmo(gamlss_results$ST2Year.FarmSCC)
+getSmo(gamlss_results$BCTYear.FarmSCC)
+```
+
+```{r, results.7, echo = FALSE, warning = FALSE, fig.width = 12}
+models <- list(
+  "Skew t distribution type 2 Year|Farm for Log TBC" = gamlss_results$ST2Year.FarmCBT,
+  "Skew t distribution type 2 Year|Farm for Log SCC" = gamlss_results$ST2Year.FarmSCC
+)
+
+ggplot_coefficients(models)
 ```
 
 ```{r, preparation.2, echo = FALSE, warning = FALSE, fig.width = 12}
@@ -334,7 +343,7 @@ p2 <- ggplot(dt, aes(x = `Log SCC`)) +
   geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
   geom_line(data = df_gamma, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
   labs(title = "Observed distribution vs. Shifted Gamma distribution",
-       x = "Log CBT",
+       x = "Log SCC",
        y = "Density") +
   theme_minimal(base_size = 12) +
   theme(
@@ -345,13 +354,13 @@ p2 <- ggplot(dt, aes(x = `Log SCC`)) +
     panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
   )
 
-p1 | p2
+wrap_plots(c(p1, p2), ncol = 2)
 ```
 
 ```{r, analysis.2, echo = FALSE, warning = FALSE, fig.width = 12}
 if (!file.exists("data/results/glm models restricted.rds")) {
   glm_restricted <- list(
-    GammaTBC = glm(`Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = Gamma(link = "identity"), data = dt),
+    GammaCBT = glm(`Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = Gamma(link = "identity"), data = dt),
 
     GammaSCC = glm(`Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = Gamma(link = "identity"), data = dt)
   )
@@ -361,9 +370,9 @@ if (!file.exists("data/results/glm models restricted.rds")) {
 
 if (!file.exists("data/results/mixed models restricted.rds")) {
   mixed_models_restricted <- list(
-    GammaMixedFarmTBC = glmer(formula = `Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
+    GammaMixedFarmCBT = glmer(formula = `Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
 
-    GammaMixedYear.FarmTBC = glmer(formula = `Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), family = Gamma(link = "identity"), data = dt),
+    GammaMixedYear.FarmCBT = glmer(formula = `Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), family = Gamma(link = "identity"), data = dt),
 
     GammaMixedFarmSCC = glmer(formula = `Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
 
@@ -398,33 +407,36 @@ mixed_models_restricted <- readRDS(file = "data/results/mixed models restricted.
 gamlss_restricted <- readRDS(file = "data/results/gamlss models restricted.rds")
 ```
 
-```{r, results.7, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, results.8, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_restricted_CBT <- list(
-  "Gamma Model" = glm_restricted$GammaTBC,
-  "Gamma Mixed Model 1|Farm" = mixed_models_restricted$GammaMixedFarmTBC,
-  "Gamma Mixed Model Year|Farm" = mixed_models_restricted$GammaMixedYear.FarmTBC,
-  "GAMLSS Gamma Model 1|Farm" = gamlss_restricted$GammaFarmTBC,
-  "GAMLSS Gamma Model Year|Farm" = gamlss_restricted$GammaYear.FarmTBC,
-  "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaFarmTBC,
-  "GAMLSS Generalized Gamma Model Year|Farm" = gamlss_restricted$GeneralizedGammaYear.FarmTBC,
-  "GAMLSS Exponential Gaussian 1|Farm" = gamlss_restricted$ExGaussFarmTBC,
-  "GAMLSS Exponential Gaussian Year|Farm" = gamlss_restricted$ExGaussYear.FarmTBC
-)
+  "Gamma Model" = glm_restricted$GammaCBT,
+  "Gamma Mixed Model 1|Farm" = mixed_models_restricted$GammaMixedFarmCBT,
+  "Gamma Mixed Model Year|Farm" = mixed_models_restricted$GammaMixedYear.FarmCBT,
+  "GAMLSS Gamma Model 1|Farm" = gamlss_restricted$GammaFarmCBT,
+  "GAMLSS Gamma Model Year|Farm" = gamlss_restricted$GammaYear.FarmCBT,
+  "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaFarmCBT,
+  "GAMLSS Generalized Gamma Model Year|Farm" = gamlss_restricted$GeneralizedGammaYear.FarmCBT,
+  "GAMLSS Exponential Gaussian 1|Farm" = gamlss_restricted$ExGaussFarmCBT,
+  "GAMLSS Exponential Gaussian Year|Farm" = gamlss_restricted$ExGaussYear.FarmCBT
+  )
 
 model_selection_criteria(objects_restricted_CBT)
-
-getSmo(gamlss_restricted$GammaFarmTBC)
-getSmo(gamlss_restricted$GeneralizedGammaFarmTBC)
-```
-
-```{r, results.8, echo = FALSE, warning = FALSE, fig.width = 12}
-autoplot_gamlss(
-  gamlss_restricted$GeneralizedGammaFarmTBC,
-  summaries = FALSE, model = "GeneralizedGammaYear.Farm - TBC", save = FALSE
-)
 ```
 
 ```{r, results.9, echo = FALSE, warning = FALSE, fig.width = 12}
+summary(gamlss_restricted$GeneralizedGammaFarmCBT)
+
+getSmo(gamlss_restricted$GeneralizedGammaFarmCBT)
+```
+
+```{r, results.10, echo = FALSE, warning = FALSE, fig.width = 12}
+ggplot_gamlss_diagnostics(
+  gamlss_restricted$GeneralizedGammaFarmCBT,
+  summaries = FALSE, model = "GeneralizedGammaYear.Farm - CBT", save = FALSE
+  )
+```
+
+```{r, results.11, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_restricted_SCC <- list(
   "Gamma Model" = glm_restricted$GammaSCC,
   "Gamma Mixed Model 1|Farm" = mixed_models_restricted$GammaMixedFarmSCC,
@@ -438,21 +450,27 @@ objects_restricted_SCC <- list(
 )
 
 model_selection_criteria(objects_restricted_SCC)
+```
 
-getSmo(gamlss_restricted$GammaFarmSCC)
-getSmo(gamlss_restricted$GammaYear.FarmSCC)
-getSmo(gamlss_restricted$GeneralizedGammaFarmSCC)
+```{r, results.12, echo = FALSE, warning = FALSE, fig.width = 12}
+summary(gamlss_restricted$GeneralizedGammaYear.FarmSCC)
+
 getSmo(gamlss_restricted$GeneralizedGammaYear.FarmSCC)
 ```
 
-```{r, results.10, echo = FALSE, warning = FALSE, fig.width = 12}
-autoplot_gamlss(
-  gamlss_restricted$GammaYear.FarmSCC,
-  summaries = FALSE, model = "GammaYear.Farm - SCC", save = FALSE
-)
-
-autoplot_gamlss(
+```{r, results.13, echo = FALSE, warning = FALSE, fig.width = 12}
+ggplot_gamlss_diagnostics(
   gamlss_restricted$GeneralizedGammaYear.FarmSCC,
   summaries = FALSE, model = "GeneralizedGammaYear.Farm - SCC", save = FALSE
-)
+  )
 ```
+
+```{r, results.14, echo = FALSE, warning = FALSE, fig.width = 12}
+models <- list(
+  "Generalized Gamma Year|Farm for Log CBT" = gamlss_restricted$GeneralizedGammaYear.FarmCBT,
+  "Generalized Gamma Year|Farm for Log SCC" = gamlss_restricted$GeneralizedGammaYear.FarmSCC
+  )
+
+ggplot_coefficients(models)
+```
+

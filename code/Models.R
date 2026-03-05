@@ -76,7 +76,7 @@ models_gamlss <- list(
 
 # GAMLSS restricted models configurations (CBT & SCC)
 models_gamlss_restricted <- list(
-  GammaFarmTBC = list(
+  GammaFarmCBT = list(
     formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     sigma = ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     family = GA(mu.link = "identity", sigma.link = "log"), data = "dt"
@@ -88,7 +88,7 @@ models_gamlss_restricted <- list(
     family = GA(mu.link = "identity", sigma.link = "log"), data = "dt"
   ),
 
-  GammaYear.FarmTBC = list(
+  GammaYear.FarmCBT = list(
     formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ Year_num|Farm),
     sigma = ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     family = GA(mu.link = "identity", sigma.link = "log"), data = "dt"
@@ -100,7 +100,7 @@ models_gamlss_restricted <- list(
     family = GA(mu.link = "identity", sigma.link = "log"), data = "dt"
   ),
 
-  GeneralizedGammaFarmTBC = list(
+  GeneralizedGammaFarmCBT = list(
     formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     sigma = ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     family = GG(mu.link = "identity", sigma.link = "log", nu.link = "identity"), data = "dt"
@@ -112,7 +112,7 @@ models_gamlss_restricted <- list(
     family = GG(mu.link = "identity", sigma.link = "log", nu.link = "identity"), data = "dt"
   ),
 
-  GeneralizedGammaYear.FarmTBC = list(
+  GeneralizedGammaYear.FarmCBT = list(
     formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ Year_num|Farm),
     sigma = ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     family = GG(mu.link = "identity", sigma.link = "log", nu.link = "identity"), data = "dt"
@@ -124,7 +124,7 @@ models_gamlss_restricted <- list(
     family = GG(mu.link = "identity", sigma.link = "log", nu.link = "identity"), data = "dt"
   ),
 
-  ExGaussFarmTBC = list(
+  ExGaussFarmCBT = list(
     formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     sigma = ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     family = exGAUS(mu.link = "identity", sigma.link = "log", nu.link = "log"), data = "dt"
@@ -136,7 +136,7 @@ models_gamlss_restricted <- list(
     family = exGAUS(mu.link = "identity", sigma.link = "log", nu.link = "log"), data = "dt"
   ),
 
-  ExGaussYear.FarmTBC = list(
+  ExGaussYear.FarmCBT = list(
     formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ Year_num|Farm),
     sigma = ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + re(random = ~ 1|Farm),
     family = exGAUS(mu.link = "identity", sigma.link = "log", nu.link = "log"), data = "dt"

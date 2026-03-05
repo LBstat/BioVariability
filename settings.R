@@ -7,6 +7,8 @@ library(readxl)
 library(data.table)
 library(checkmate)
 library(naniar)
+library(broom)
+library(purrr)
 
 # Data visualization
 library(viridis)

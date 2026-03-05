@@ -181,40 +181,34 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
   wp <- wrap_plots(p1, p2, p3, p4, p5, p6, ncol = 2)
 
   if (save) {
-    existing_files <- list.files(out_dir, pattern = paste0(model, " diagnostics[0-9]+\\.png"))
+    filename <- paste0(model, " diagnostics.png")
+    filepath <- file.path(out_dir, filename)
 
-    if (length(existing_files) == 0) {
-      filename <- paste0(model," diagnostics1.png")
+    if (file.exists(filepath)) {
+      answer <- readline(paste0("File '", filename, "' already exists. Overwrite? (Y/N): "))
 
-      ggsave(
-        filename = file.path(out_dir, filename),
-        plot = wp,
-        width = 12,
-        height = 6,
-        dpi = 300
-      )
-    } else {
-      val <- as.numeric(unlist(regmatches(existing_files, gregexec(pattern = "[0-9]", existing_files, perl = TRUE))))
-
-      filename <- paste0(model, " diagnostics", max(val) + 1, ".png")
-
-      ggsave(
-        filename = file.path(out_dir, filename),
-        plot = wp,
-        width = 12,
-        height = 6,
-        dpi = 300
-      )
+      if (toupper(answer) != "Y") {
+        message("No saving.")
+        return(invisible(NULL))
+      }
     }
+
+    ggsave(
+      filename = filepath,
+      plot = wp,
+      width = 12,
+      height = 6,
+      dpi = 300
+    )
+
+    message("Plot saved to: ", filepath)
   }
 
-  print(wp)
-
-  invisible(wp)
+  wp
 }
 
-# Function that performs grpahical diagnostics for GAMLSS-objects
-autoplot_gamlss <- function(obj, xvar = NULL, summaries = TRUE, model = "gamlss", out_dir = "plot/", save = TRUE) {
+# Function that performs graphical diagnostics for GAMLSS-objects
+ggplot_gamlss_diagnostics <- function(obj, xvar = NULL, summaries = TRUE, model = "gamlss", out_dir = "plot/", save = TRUE) {
 
   if (save) {
     if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
@@ -324,34 +318,28 @@ autoplot_gamlss <- function(obj, xvar = NULL, summaries = TRUE, model = "gamlss"
   wp <- wrap_plots(p1, p2, p3, p4, ncol = 2)
 
   if (save) {
-    existing_files <- list.files(out_dir, pattern = paste0(model, " diagnostics[0-9]+\\.png"))
+    filename <- paste0(model, " diagnostics.png")
+    filepath <- file.path(out_dir, filename)
 
-    if (length(existing_files) == 0) {
-      filename <- paste0(model," diagnostics1.png")
+    if (file.exists(filepath)) {
+      answer <- readline(paste0("File '", filename, "' already exists. Overwrite? (Y/N): "))
 
-      ggsave(
-        filename = file.path(out_dir, filename),
-        plot = wp,
-        width = 12,
-        height = 6,
-        dpi = 300
-      )
-    } else {
-      val <- as.numeric(unlist(regmatches(existing_files, gregexec(pattern = "[0-9]", existing_files, perl = TRUE))))
-
-      filename <- paste0(model, " diagnostics", max(val) + 1, ".png")
-
-      ggsave(
-        filename = file.path(out_dir, filename),
-        plot = wp,
-        width = 12,
-        height = 6,
-        dpi = 300
-      )
+      if (toupper(answer) != "Y") {
+        message("No saving.")
+        return(invisible(NULL))
+      }
     }
-  }
 
-  print(wp)
+   ggsave(
+      filename = filepath,
+      plot = wp,
+      width = 12,
+      height = 6,
+      dpi = 300
+    )
+
+    message("Plot saved to: ", filepath)
+  }
 
   # Summary statistics
   if (isTRUE(summaries)) {
@@ -389,5 +377,99 @@ autoplot_gamlss <- function(obj, xvar = NULL, summaries = TRUE, model = "gamlss"
     cat("******************************************************************\n")
   }
 
-  invisible(wp)
+  wp
+}
+
+ggplot_coefficients <- function(models, colours = NULL, out_dir = "plot/", save = TRUE) {
+
+  # Assertions
+  assertList(models, names = "named", min.len = 1, max.len = 5)
+  assertCharacter(colours, any.missing = FALSE, null.ok = TRUE)
+
+  if (save) {
+    if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
+  }
+
+  if (is.null(colours)) {
+    colours <- c("#9DC183","#9B1B30", "#DAA520", "#003366", "#9575CD")
+    colours <- setNames(colours[1:length(models)], names(models))
+  }
+
+  plot_data <- list()
+
+  # 1. Extract coefficients
+  for (i in seq_along(models)) {
+    plot_data[[i]] <- tidy(models[[i]]) |> filter(parameter == "mu") |> mutate(Model = names(models)[[i]])
+  }
+
+  dt <- bind_rows(plot_data)
+
+  # 2. Data preparation
+  plot_data_final <- dt |>
+    filter(term != "(Intercept)") |>
+    mutate(
+      term = gsub("`", "", term),
+      term = gsub("Risk - ", "", term),
+      term = gsub("Season", "Season: ", term),
+      Group = dplyr::case_when(
+        grepl("Season", term) ~ "Seasonal patterns",
+        grepl("Year", term) ~ "Annual trends",
+        TRUE ~ "Sanitary risks (Screening)"
+      )
+    )
+
+  # 3. Plot
+  plot <- ggplot(plot_data_final, aes(x = estimate, y = term, color = Model, shape = Model)) +
+    geom_point(size = 2.5, position = position_dodge(width = 1)) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+    geom_errorbarh(
+      aes(xmin = estimate - 1.96 * std.error, xmax = estimate + 1.96 * std.error),
+      width = 0.5, position = position_dodge(width = 1)) +
+    scale_color_manual(values = colours) +
+    scale_x_continuous(breaks = seq(-0.3, 0.1, by = 0.01)) +
+    facet_grid(Group ~ ., scales = "free_y", space = "free_y") +
+    labs(
+      title = "Comparative analysis of milk quality drivers",
+      subtitle = "Impact of sanitary and environmental factors on the mean (mu parameter)",
+      x = "Estimated effect (Beta coefficient in log scale)",
+      y = NULL,
+      color = "Indicator",
+      shape = "Indicator"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+    )
+
+  for (i in seq_along(models)) {
+    if (save) {
+      filename <- paste0(names(models)[[i]], " diagnostics.png")
+      filepath <- file.path(out_dir, filename)
+
+      if (file.exists(filepath)) {
+        answer <- readline(paste0("File '", filename, "' already exists. Overwrite? (Y/N): "))
+
+        if (toupper(answer) != "Y") {
+          message("No saving.")
+          return(invisible(NULL))
+        }
+      }
+
+      ggsave(
+        filename = filepath,
+        plot = wp,
+        width = 12,
+        height = 6,
+        dpi = 300
+      )
+
+      message("Plot saved to: ", filepath)
+    }
+  }
+
+  plot
 }
