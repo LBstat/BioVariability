@@ -9,6 +9,7 @@ library(checkmate)
 library(naniar)
 
 # Data visualization
+library(viridis)
 library(ggridges)
 library(patchwork)
 library(DHARMa)

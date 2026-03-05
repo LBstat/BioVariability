@@ -13,32 +13,122 @@ source("source_all.R")
 data <- read_excel("data/raw/Latte.xlsx")
 setDT(data)
 
-miss_var_summary(data)
+dt_analysis <- na.omit(data)
 
-dt <- data[order(Farm)][,
-  .(meanLOG_CBT = mean(`Log CBT`, na.rm = TRUE), sdLOG_CBT = sd(`Log CBT`, na.rm = TRUE)), by = .(Year, Season)]
-dt <- dt[order(Year)]
+dt_analysis$`Risk - IBR` <- as.factor(dt_analysis$`Risk - IBR`)
+dt_analysis$`Risk - AGAL` <- as.factor(dt_analysis$`Risk - AGAL`)
+dt_analysis$`Risk - PT` <- as.factor(dt_analysis$`Risk - PT`)
 
-ggplot(data = dt, mapping = aes(x = Year, y = meanLOG_CBT, colour = Season)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "loess", se = FALSE) +
-  labs(title = "Mean variability of Log CBT between years",
-       x = "Year",
-       y = "Mean Log CBT"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-    axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-    panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-    panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+dt_analysis$Season <- as.factor(dt_analysis$Season)
+levels(dt_analysis$Season) <- c("Autumn", "Spring", "Summer", "Winter")
+
+dt_analysis$Year <- as.factor(dt_analysis$Year)
+dt_analysis$Year_num <- as.numeric(dt_analysis$Year) - min(as.numeric(dt_analysis$Year))
+
+dt <- dt_analysis[TBC > 100000 & SCC > 300000]
+
+datasets <- list(dt_analysis = dt_analysis, dt = dt)
+
+variables <- list("Season", "Risk - IBR", "Risk - PT", "Risk - AGAL")
+
+palettes <- list(
+  "Year" = c("2016" = "#7E57C2", "2017" = "#9575CD", "2018" = "#673AB7", "2019" = "#B39DDB", "2020" = "#512DA8"),
+  "Season" = c(Spring = "#9DC183", Summer = "#9B1B30", Autumn = "#DAA520", Winter = "#003366"),
+  "Risk - IBR" = c("Low risk" = "#9DC183", "Medium risk" = "#DAA520", "High risk" = "#9B1B30"),
+  "Risk - PT" = c("Low risk" = "#9DC183", "Medium risk" = "#DAA520", "High risk" = "#9B1B30"),
+  "Risk - AGAL" = c("Low risk" = "#9DC183", "High risk" = "#9B1B30")
   )
 
-table(data$Year)
+dt_year <- dt_analysis[, .(meanLOG_CBT = mean(`Log CBT`), meanLOG_SCC = mean(`Log SCC`)), by = .(Year, Season)][order(Year)]
+dt_month <- dt_analysis[, .(meanLOG_CBT = mean(`Log CBT`), meanLOG_SCC = mean(`Log SCC`)), by = .(Year, Month)][order(Year, Month)]
 
-cor(data$TBC, data$`Log SCC`, use = "complete.obs")
-# No correlation between somatic cell count and total bacterial count
+p_year_cbt <- ggplot(dt_year, aes(x = as.numeric(as.character(Year)), y = meanLOG_CBT, colour = Season)) +
+  geom_smooth(method = "loess", se = FALSE, linewidth = 1) +
+  scale_color_manual(values = palettes[["Season"]]) +
+  labs(
+    title = "Mean Log CBT across years",
+    x = "Year",
+    y = "Mean Log CBT"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+    )
+
+p_year_scc <- ggplot(dt_year, aes(x = as.numeric(as.character(Year)), y = meanLOG_CBT, colour = Season)) +
+  geom_smooth(method = "loess", se = FALSE, linewidth = 1) +
+  scale_color_manual(values = palettes[["Season"]]) +
+  labs(
+    title = "Mean Log SCC across years",
+    x = "Year",
+    y = "Mean Log SCC"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+    )
+
+p_month_cbt <- ggplot(dt_month, aes(x = Month, y=  meanLOG_CBT, colour = Year, group = Year)) +
+  geom_smooth(method = "loess", se = FALSE, linewidth = 1) +
+  scale_color_manual(values = palettes[["Year"]]) +
+  scale_x_continuous(breaks = 1:12) +
+  labs(
+    title = "Seasonal pattern of Log CBT",
+    x = "Month",
+    y = "Mean Log CBT",
+    colour = "Year"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme_minimal(base_size = 12) +
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+    )
+
+p_month_scc <- ggplot(dt_month, aes(x = Month, y = meanLOG_SCC, colour = factor(Year), group = Year)) +
+  geom_smooth(method = "loess", se = FALSE, linewidth = 1) +
+  scale_color_manual(values = palettes[["Year"]]) +
+  scale_x_continuous(breaks = 1:12) +
+  labs(
+    title = "Seasonal pattern of Log SCC",
+    x = "Month",
+    y = "Mean Log SCC",
+    colour = "Year"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme_minimal(base_size = 12) +
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+    )
+
+wrap_plots(c(p_year_cbt, p_year_scc, p_month_cbt, p_month_scc), ncol = 2)
+```
+
+```{r, exploration.2, echo = FALSE, warning = FALSE, fig.width = 12}
+plots_CBT <- lapply(variables, function(y) ggplot_density(dt_analysis, "Log CBT", y, palettes[[y]], save = FALSE))
+plots_SCC <- lapply(variables, function(y) ggplot_density(dt_analysis, "Log SCC", y, palettes[[y]], save = FALSE))
+
+wrap_plots(plots_CBT, ncol = 2)
+wrap_plots(plots_SCC, ncol = 2)
 
 mu <- mean(data$`Log CBT`, na.rm = TRUE)
 var <- var(data$`Log CBT`, na.rm = TRUE)
@@ -82,80 +172,7 @@ p2 <- ggplot(data, aes(x = `Log SCC`)) +
       panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
     )
 
-wp <- p1 | p2
-wp
-
-# ggsave(
-#  filename = "plot/distributions.png",
-#  plot = wp,
-#  width = 12,
-#  height = 6,
-#  dpi = 300
-# )
-```
-
-```{r, preparation.1, echo = FALSE, warning = FALSE, fig.width = 12}
-dt_analysis <- na.omit(data) # Data handling of missing values
-
-dt_analysis$`Risk - IBR` <- as.factor(dt_analysis$`Risk - IBR`)
-dt_analysis$`Risk - AGAL` <- as.factor(dt_analysis$`Risk - AGAL`)
-dt_analysis$`Risk - PT` <- as.factor(dt_analysis$`Risk - PT`)
-
-dt_analysis$Season <- as.factor(dt_analysis$Season)
-levels(dt_analysis$Season) <- c("Autumn", "Spring", "Summer", "Winter")
-
-dt_analysis$Year <- as.factor(dt_analysis$Year)
-
-dt_analysis$Year_num <- as.numeric(dt_analysis$Year) - min(as.numeric(dt_analysis$Year))
-
-dt_test <- dt_analysis[TBC > 1000 & SCC > 3000]
-dt <- dt_analysis[TBC > 100000 & SCC > 300000]
-
-datasets <- list(dt_analysis = dt_analysis, dt_test = dt_test, dt = dt)
-
-mu <- mean(dt_test$`Log CBT`, na.rm = TRUE)
-var <- var(dt_test$`Log CBT`, na.rm = TRUE)
-
-x <- seq(min(dt_test$`Log CBT`, na.rm = TRUE), max(dt_test$`Log CBT`, na.rm = TRUE), length.out = 500)
-df <- data.frame(x = x, y = dnorm(x, mean = mu, sd = sqrt(var)))
-
-p1 <- ggplot(dt_test, aes(x = `Log CBT`)) +
-  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
-  geom_line(data = df, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
-  labs(title = "Observed distribution vs. Normal distribution",
-       x = "Log CBT",
-       y = "Desnity") +
-  theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
-
-mu <- mean(dt_test$`Log SCC`, na.rm = TRUE)
-var <- var(dt_test$`Log SCC`, na.rm = TRUE)
-
-x <- seq(min(dt_test$`Log SCC`, na.rm = TRUE), max(dt_test$`Log SCC`, na.rm = TRUE), length.out = 500)
-df <- data.frame(x = x, y = dnorm(x, mean = mu, sd = sqrt(var)))
-
-p2 <- ggplot(dt_test, aes(x = `Log SCC`)) +
-  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
-  geom_line(data = df, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
-  labs(title = "Observed distribution vs. Normal distribution",
-       x = "Log SCC",
-       y = "Density") +
-  theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
-
-p1 | p2
+wrap_plots(c(p1, p2), ncol = 2)
 ```
 
 ```{r, analysis.1, echo = FALSE, warning = FALSE, fig.width = 12}
@@ -242,59 +259,6 @@ getSmo(gamlss_results$ST2Year.FarmCBT)
 ```
 
 ```{r, results.4, echo = FALSE, warning = FALSE, fig.width = 12}
-variables <- list("Season", "Risk - IBR", "Risk - PT", "Risk - AGAL")
-
-plots <- lapply(variables, function(x) {
-  plot <- ggplot(dt_analysis, aes(y = `Log CBT`, fill = .data[[x]])) +
-    geom_boxplot(outlier.shape = 1, alpha = 0.6)
-
-  if (x == "Season") {
-    p <- scale_fill_manual(values = c("Spring" = "#9DC183", "Summer" = "#DAA520", "Autumn" = "#9B1B30", "Winter" = "#003366"))
-  }
-  if (x == "Risk - IBR") {
-    p <- scale_fill_manual(values = c("Low risk" = "#9DC183", "High risk" = "#9B1B30", "Medium risk" = "#003366"))
-  }
-  if (x == "Risk - PT") {
-    p <- scale_fill_manual(values = c("Low risk"="#9DC183", "High risk"="#9B1B30", "Medium risk"="#003366"))
-  }
-  if (x == "Risk - AGAL") {
-    p <- scale_fill_manual(values = c("Low risk"="#9DC183", "High risk"="#9B1B30"))
-  }
-
-  plot <- plot +
-    p +
-    labs(title = "Log CBT",
-         x = x,
-         y = "Log CBT",
-         fill = x
-         ) +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-      )
-
-  filename <- paste0("Boxplot log CBT: ", x, ".png")
-
-  ggsave(
-    filename = file.path("plot/", filename),
-    plot = plot,
-    width = 12,
-    height = 6,
-    dpi = 300
-    )
-
-  plot
-  })
-
-plots[[1]]
-plots[[2]] | plots[[3]] | plots[[4]]
-```
-
-```{r, results.5, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_SCC <- list(
   "Linear Model" = glm_results$LINmodSCC,
   "Linear Mixed Model 1|Farm" = mixed_models_results$LINmixedFarmSCC,
@@ -310,7 +274,7 @@ objects_SCC <- list(
 model_selection_criteria(objects_SCC)
 ```
 
-```{r, results.6, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, results.5, echo = FALSE, warning = FALSE, fig.width = 12}
 autoplot_gamlss(
   gamlss_results$BCTYear.FarmSCC,
   summaries = FALSE, model = "BCTYear.Farm - SCC", save = FALSE
@@ -322,63 +286,10 @@ autoplot_gamlss(
 )
 ```
 
-```{r, results.7, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, results.6, echo = FALSE, warning = FALSE, fig.width = 12}
 summary(gamlss_results$ST2Year.FarmSCC)
 
 getSmo(gamlss_results$ST2Year.FarmSCC)
-```
-
-```{r, results.8, echo = FALSE, warning = FALSE, fig.width = 12}
-variables <- list("Season", "Risk - IBR", "Risk - PT", "Risk - AGAL")
-
-plots <- lapply(variables, function(x) {
-  plot <- ggplot(dt_analysis, aes(y = `Log SCC`, fill = .data[[x]])) +
-    geom_boxplot(outlier.shape = 1, alpha = 0.6)
-
-  if (x == "Season") {
-    p <- scale_fill_manual(values = c("Spring" = "#9DC183", "Summer" = "#DAA520", "Autumn" = "#9B1B30", "Winter" = "#003366"))
-  }
-  if (x == "Risk - IBR") {
-    p <- scale_fill_manual(values = c("Low risk" = "#9DC183", "High risk" = "#9B1B30", "Medium risk" = "#003366"))
-  }
-  if (x == "Risk - PT") {
-    p <- scale_fill_manual(values = c("Low risk"="#9DC183", "High risk"="#9B1B30", "Medium risk"="#003366"))
-  }
-  if (x == "Risk - AGAL") {
-    p <- scale_fill_manual(values = c("Low risk"="#9DC183", "High risk"="#9B1B30"))
-  }
-
-  plot <- plot +
-    p +
-    labs(title = "Log SCC",
-         x = x,
-         y = "Log SCC",
-         fill = x
-         ) +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-      )
-
-  filename <- paste0("Boxplot log SCC: ", x, ".png")
-
-  ggsave(
-    filename = file.path("plot/", filename),
-    plot = plot,
-    width = 12,
-    height = 6,
-    dpi = 300
-    )
-
-  plot
-  })
-
-plots[[1]]
-plots[[2]] | plots[[3]] | plots[[3]]
 ```
 
 ```{r, preparation.2, echo = FALSE, warning = FALSE, fig.width = 12}
@@ -487,7 +398,7 @@ mixed_models_restricted <- readRDS(file = "data/results/mixed models restricted.
 gamlss_restricted <- readRDS(file = "data/results/gamlss models restricted.rds")
 ```
 
-```{r, results.9, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, results.7, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_restricted_CBT <- list(
   "Gamma Model" = glm_restricted$GammaTBC,
   "Gamma Mixed Model 1|Farm" = mixed_models_restricted$GammaMixedFarmTBC,
@@ -506,14 +417,14 @@ getSmo(gamlss_restricted$GammaFarmTBC)
 getSmo(gamlss_restricted$GeneralizedGammaFarmTBC)
 ```
 
-```{r, results.10, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, results.8, echo = FALSE, warning = FALSE, fig.width = 12}
 autoplot_gamlss(
   gamlss_restricted$GeneralizedGammaFarmTBC,
   summaries = FALSE, model = "GeneralizedGammaYear.Farm - TBC", save = FALSE
 )
 ```
 
-```{r, results.11, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, results.9, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_restricted_SCC <- list(
   "Gamma Model" = glm_restricted$GammaSCC,
   "Gamma Mixed Model 1|Farm" = mixed_models_restricted$GammaMixedFarmSCC,
@@ -534,7 +445,7 @@ getSmo(gamlss_restricted$GeneralizedGammaFarmSCC)
 getSmo(gamlss_restricted$GeneralizedGammaYear.FarmSCC)
 ```
 
-```{r, results.12, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, results.10, echo = FALSE, warning = FALSE, fig.width = 12}
 autoplot_gamlss(
   gamlss_restricted$GammaYear.FarmSCC,
   summaries = FALSE, model = "GammaYear.Farm - SCC", save = FALSE

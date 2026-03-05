@@ -1,4 +1,53 @@
 
+# Function to plot densities for different categorical variables
+ggplot_density <- function(data, x, y, palette = NULL, out_dir = "plot/", save = TRUE) {
+
+  # Assertions
+  assertDataFrame(data)
+  assertString(x)
+  assertString(y)
+  
+  if (save && !dir.exists(out_dir)) {
+    dir.create(out_dir, recursive = TRUE)
+  }
+  
+  plot <- ggplot(data, aes(x = .data[[x]], y = .data[[y]], fill = .data[[y]])) +
+    geom_density_ridges(alpha = 0.7, bandwidth = 0.05)
+
+  if (!is.null(palette)) {
+    plot <- plot + scale_fill_manual(values = palette)
+  }
+
+  plot <- plot +
+    labs(title = paste("Distribution of", x, "by", y),
+         x = x,
+         y = y,
+         fill = y
+         ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+    )
+
+  if (save) {
+    filename <- paste0(x, " density by ", y, ".png")
+
+    ggsave(
+      file.path(out_dir, filename),
+      plot = plot,
+      width = 12,
+      height = 6,
+      dpi = 300
+    )
+  }
+
+  plot
+}
+
 # Function that performs graphical diagnostics for glm-objects
 ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/", save = TRUE) {
 
@@ -9,7 +58,6 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
   if (missing(y)) stop("Response variable is missing")
   if (save) {
     if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
-        warning("Duplicates might arise")
   }
 
   # Fitted values and residuals
@@ -27,7 +75,7 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
   res_var <- dev.res / sqrt(obj$family$variance(mu.hat))
 
   # Palette Viridis
-  pal <- viridis::viridis(6)
+  pal <- viridis(6)
 
   # Linearity
   p1 <- ggplot(data, aes(x = eta.hat, y = dev.res)) +
@@ -130,7 +178,7 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
       panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
     )
 
-  wp <- patchwork::wrap_plots(p1, p2, p3, p4, p5, p6, ncol = 2)
+  wp <- wrap_plots(p1, p2, p3, p4, p5, p6, ncol = 2)
 
   if (save) {
     existing_files <- list.files(out_dir, pattern = paste0(model, " diagnostics[0-9]+\\.png"))
@@ -170,7 +218,6 @@ autoplot_gamlss <- function(obj, xvar = NULL, summaries = TRUE, model = "gamlss"
 
   if (save) {
     if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
-    warning("Duplicates might arise")
   }
 
   # Assertions
@@ -200,7 +247,7 @@ autoplot_gamlss <- function(obj, xvar = NULL, summaries = TRUE, model = "gamlss"
     xvar = xvar
   )
 
-  pal <- viridis::viridis(6)
+  pal <- viridis(6)
 
   # Residuals vs Fitted
   p1 <- ggplot(df, aes(fitted, residuals)) +
@@ -274,7 +321,7 @@ autoplot_gamlss <- function(obj, xvar = NULL, summaries = TRUE, model = "gamlss"
       panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
     )
 
-  wp <- patchwork::wrap_plots(p1, p2, p3, p4, ncol = 2)
+  wp <- wrap_plots(p1, p2, p3, p4, ncol = 2)
 
   if (save) {
     existing_files <- list.files(out_dir, pattern = paste0(model, " diagnostics[0-9]+\\.png"))
