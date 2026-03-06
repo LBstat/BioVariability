@@ -6,6 +6,18 @@ date: "2026-02-27"
 output: html_document
 ---
 
+## **Introduction**
+
+### Introduction and study objectives
+
+
+
+## **Data analysis**
+
+### Data preparation and pre-processing
+
+
+
 ```{r, exploration.1, echo = FALSE, warning = FALSE, fig.width = 12}
 source("settings.R")
 source("source_all.R")
@@ -18,7 +30,10 @@ data <- data |>
 
 colnames(data) <- c("Farm", "Month", "Season", "Year", "LogCBT", "LogSCC", "RiskIBR", "RiskAGAL", "RiskPT")
 
+miss_var_summary(data)
 dt_analysis <- na.omit(data)
+
+missing_values_percent <- 1 - nrow(dt_analysis) / nrow(data)
 
 dt_analysis$RiskIBR <- as.factor(dt_analysis$RiskIBR)
 dt_analysis$RiskAGAL <- as.factor(dt_analysis$RiskAGAL)
@@ -128,13 +143,11 @@ p_month_scc <- ggplot(dt_month, aes(x = Month, y = meanLOG_SCC, colour = factor(
 wrap_plots(c(p_year_cbt, p_year_scc, p_month_cbt, p_month_scc), ncol = 2)
 ```
 
+### Descriptive analysis and distributions
+
+
+
 ```{r, exploration.2, echo = FALSE, warning = FALSE, fig.width = 12}
-plots_CBT <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogCBT", y, palettes[[y]], save = FALSE))
-plots_SCC <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogSCC", y, palettes[[y]], save = FALSE))
-
-wrap_plots(plots_CBT, ncol = 2)
-wrap_plots(plots_SCC, ncol = 2)
-
 mu <- mean(data$LogCBT, na.rm = TRUE)
 var <- var(data$LogCBT, na.rm = TRUE)
 
@@ -180,12 +193,24 @@ p2 <- ggplot(data, aes(x = LogSCC)) +
 wrap_plots(c(p1, p2), ncol = 2)
 ```
 
+
+
+```{r, exploration.3, echo = FALSE, warning = FALSE, fig.width = 12}
+plots_CBT <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogCBT", y, palettes[[y]], save = FALSE))
+plots_SCC <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogSCC", y, palettes[[y]], save = FALSE))
+
+wrap_plots(plots_CBT, ncol = 2)
+wrap_plots(plots_SCC, ncol = 2)
+```
+
+### Statistical models
+
 ```{r, analysis.1, echo = FALSE, warning = FALSE, fig.width = 12}
 if (!file.exists("data/results/glm models.rds")) {
   glm_results <- list(
-    LINmodCBT = glm(LogCBT ~ Season + Year + Season * Year + RiskIBR + RiskAGAL + RiskPT, family = gaussian, data = dt_analysis),
+    LINmodCBT = glm(LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT, family = gaussian, data = dt_analysis),
 
-    LINmodSCC = glm(LogSCC ~ Season + Year + Season * Year + RiskIBR + RiskAGAL + RiskPT, family = gaussian, data = dt_analysis)
+    LINmodSCC = glm(LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT, family = gaussian, data = dt_analysis)
   )
 
   saveRDS(glm_results, file = "data/results/glm models.rds")
@@ -193,13 +218,13 @@ if (!file.exists("data/results/glm models.rds")) {
 
 if (!file.exists("data/results/mixed models.rds")) {
   mixed_models_results <- list(
-    LINmixedFarmCBT = lmer(formula = LogCBT ~ Season + Year + Season * Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), data = dt_analysis, REML = FALSE),
+    LINmixedFarmCBT = lmer(formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), data = dt_analysis, REML = FALSE),
 
-    LINmixedYear.FarmCBT = lmer(formula = LogCBT ~ Season + Year + Season * Year + RiskIBR + RiskAGAL + RiskPT + (YearNum|Farm), data = dt_analysis, REML = FALSE),
+    LINmixedYear.FarmCBT = lmer(formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (YearNum|Farm), data = dt_analysis, REML = FALSE),
 
-    LINmixedFarmSCC = lmer(formula = LogSCC ~ Season + Year + Season * Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), data = dt_analysis, REML = FALSE),
+    LINmixedFarmSCC = lmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), data = dt_analysis, REML = FALSE),
 
-    LINmixedYear.FarmSCC = lmer(formula = LogSCC ~ Season + Year + Season * Year + RiskIBR + RiskAGAL + RiskPT + (Year_num|Farm), data = dt_analysis, REML = FALSE)
+    LINmixedYear.FarmSCC = lmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (Year_num|Farm), data = dt_analysis, REML = FALSE)
   )
 
   saveRDS(mixed_models_results, file = "data/results/mixed models.rds")
@@ -228,6 +253,8 @@ glm_results <- readRDS(file = "data/results/glm models.rds")
 mixed_models_results <- readRDS(file = "data/results/mixed models.rds")
 gamlss_results <- readRDS(file = "data/results/gamlss models.rds")
 ```
+
+### Model choice for Log CBT
 
 ```{r, results.1, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_CBT <- list(
@@ -263,6 +290,8 @@ summary(gamlss_results$ST2Year.FarmCBT)
 getSmo(gamlss_results$ST2Year.FarmCBT)
 ```
 
+### Model choice for Log SCC
+
 ```{r, results.4, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_SCC <- list(
   "Linear Model" = glm_results$LINmodSCC,
@@ -297,6 +326,8 @@ summary(gamlss_results$BCTYear.FarmSCC)
 getSmo(gamlss_results$BCTYear.FarmSCC)
 ```
 
+### Results
+
 ```{r, results.7, echo = FALSE, warning = FALSE, fig.width = 12}
 models <- list(
   "Skew t distribution type 2 Year|Farm for Log TBC" = gamlss_results$ST2Year.FarmCBT,
@@ -305,6 +336,8 @@ models <- list(
 
 ggplot_coefficients(models)
 ```
+
+### Model prediction cpacity
 
 ```{r, testing.1, echo = FALSE, warning = FALSE, fig.width = 12}
 set.seed(123)
@@ -344,6 +377,8 @@ errors_ignote <- test_ignote[abs(LogCBT - pred) > 0.5]
 summary(errors_ignote[, .(LogCBT, Season, Year, RiskAGAL, RiskIBR, RiskPT)])
 mean(errors_ignote$pred - errors_ignote$LogCBT, na.rm = TRUE)
 ```
+
+### Restricted analysis
 
 ```{r, preparation.2, echo = FALSE, warning = FALSE, fig.width = 12}
 threshold <- min(dt$`Log CBT`)
@@ -401,12 +436,14 @@ p2 <- ggplot(dt, aes(x = `Log SCC`)) +
 wrap_plots(c(p1, p2), ncol = 2)
 ```
 
+### Models
+
 ```{r, analysis.2, echo = FALSE, warning = FALSE, fig.width = 12}
 if (!file.exists("data/results/glm models restricted.rds")) {
   glm_restricted <- list(
-    GammaCBT = glm(`Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = Gamma(link = "identity"), data = dt),
+    GammaCBT = glm(`Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = Gamma(link = "identity"), data = dt),
 
-    GammaSCC = glm(`Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = Gamma(link = "identity"), data = dt)
+    GammaSCC = glm(`Log SCC` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = Gamma(link = "identity"), data = dt)
   )
   
   saveRDS(glm_restricted, file = "data/results/glm models restricted.rds")
@@ -414,13 +451,13 @@ if (!file.exists("data/results/glm models restricted.rds")) {
 
 if (!file.exists("data/results/mixed models restricted.rds")) {
   mixed_models_restricted <- list(
-    GammaMixedFarmCBT = glmer(formula = `Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
+    GammaMixedFarmCBT = glmer(formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
 
-    GammaMixedYear.FarmCBT = glmer(formula = `Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), family = Gamma(link = "identity"), data = dt),
+    GammaMixedYear.FarmCBT = glmer(formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), family = Gamma(link = "identity"), data = dt),
 
-    GammaMixedFarmSCC = glmer(formula = `Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
+    GammaMixedFarmSCC = glmer(formula = `Log SCC` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
 
-    GammaMixedYear.FarmSCC = glmer(formula = `Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), Gamma(link = "identity"), data = dt)
+    GammaMixedYear.FarmSCC = glmer(formula = `Log SCC` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), Gamma(link = "identity"), data = dt)
   )
 
   saveRDS(mixed_models_restricted, file = "data/results/mixed models restricted.rds")
@@ -450,6 +487,8 @@ glm_restricted <- readRDS(file = "data/results/glm models restricted.rds")
 mixed_models_restricted <- readRDS(file = "data/results/mixed models restricted.rds")
 gamlss_restricted <- readRDS(file = "data/results/gamlss models restricted.rds")
 ```
+
+### Results
 
 ```{r, results.8, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_restricted_CBT <- list(
@@ -517,6 +556,4 @@ models <- list(
 
 ggplot_coefficients(models)
 ```
-
-
 
