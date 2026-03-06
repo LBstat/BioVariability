@@ -13,34 +13,39 @@ source("source_all.R")
 data <- read_excel("data/raw/Latte.xlsx")
 setDT(data)
 
+data <- data |>
+  select(Farm, Month, Season, Year, `Log CBT`, `Log SCC`, `Risk - IBR`, `Risk - AGAL`, `Risk - PT`)
+
+colnames(data) <- c("Farm", "Month", "Season", "Year", "LogCBT", "LogSCC", "RiskIBR", "RiskAGAL", "RiskPT")
+
 dt_analysis <- na.omit(data)
 
-dt_analysis$`Risk - IBR` <- as.factor(dt_analysis$`Risk - IBR`)
-dt_analysis$`Risk - AGAL` <- as.factor(dt_analysis$`Risk - AGAL`)
-dt_analysis$`Risk - PT` <- as.factor(dt_analysis$`Risk - PT`)
+dt_analysis$RiskIBR <- as.factor(dt_analysis$RiskIBR)
+dt_analysis$RiskAGAL <- as.factor(dt_analysis$RiskAGAL)
+dt_analysis$RiskPT <- as.factor(dt_analysis$RiskPT)
 
 dt_analysis$Season <- as.factor(dt_analysis$Season)
 levels(dt_analysis$Season) <- c("Autumn", "Spring", "Summer", "Winter")
 
 dt_analysis$Year <- as.factor(dt_analysis$Year)
-dt_analysis$Year_num <- as.numeric(dt_analysis$Year) - min(as.numeric(dt_analysis$Year))
+dt_analysis$YearNum <- as.numeric(dt_analysis$Year) - min(as.numeric(dt_analysis$Year))
 
-dt <- dt_analysis[TBC > 100000 & SCC > 300000]
+dt_restricted <- dt_analysis[LogCBT > log(100000, base = 10) & LogSCC > log(300000, base = 10)]
 
-datasets <- list(dt_analysis = dt_analysis, dt = dt)
+datasets <- list(dt_analysis = dt_analysis, dt_restricted = dt_restricted)
 
-variables <- list("Season", "Risk - IBR", "Risk - PT", "Risk - AGAL")
+variables <- list("Season", "RiskIBR", "RiskPT", "RiskAGAL")
 
 palettes <- list(
   "Year" = c("2016" = "#7E57C2", "2017" = "#9575CD", "2018" = "#673AB7", "2019" = "#B39DDB", "2020" = "#512DA8"),
   "Season" = c("Spring" = "#9DC183", "Summer" = "#9B1B30", "Autumn" = "#DAA520", "Winter" = "#003366"),
-  "Risk - IBR" = c("Low risk" = "#9DC183", "Medium risk" = "#DAA520", "High risk" = "#9B1B30"),
-  "Risk - PT" = c("Low risk" = "#9DC183", "Medium risk" = "#DAA520", "High risk" = "#9B1B30"),
-  "Risk - AGAL" = c("Low risk" = "#9DC183", "High risk" = "#9B1B30")
+  "RiskIBR" = c("Low risk" = "#9DC183", "Medium risk" = "#DAA520", "High risk" = "#9B1B30"),
+  "RiskPT" = c("Low risk" = "#9DC183", "Medium risk" = "#DAA520", "High risk" = "#9B1B30"),
+  "RiskAGAL" = c("Low risk" = "#9DC183", "High risk" = "#9B1B30")
   )
 
-dt_year <- dt_analysis[, .(meanLOG_CBT = mean(`Log CBT`), meanLOG_SCC = mean(`Log SCC`)), by = .(Year, Season)][order(Year)]
-dt_month <- dt_analysis[, .(meanLOG_CBT = mean(`Log CBT`), meanLOG_SCC = mean(`Log SCC`)), by = .(Year, Month)][order(Year, Month)]
+dt_year <- dt_analysis[, .(meanLOG_CBT = mean(LogCBT), meanLOG_SCC = mean(LogSCC)), by = .(Year, Season)][order(Year)]
+dt_month <- dt_analysis[, .(meanLOG_CBT = mean(LogCBT), meanLOG_SCC = mean(LogSCC)), by = .(Year, Month)][order(Year, Month)]
 
 p_year_cbt <- ggplot(dt_year, aes(x = as.numeric(as.character(Year)), y = meanLOG_CBT, colour = Season)) +
   geom_smooth(method = "loess", se = FALSE, linewidth = 1) +
@@ -124,19 +129,19 @@ wrap_plots(c(p_year_cbt, p_year_scc, p_month_cbt, p_month_scc), ncol = 2)
 ```
 
 ```{r, exploration.2, echo = FALSE, warning = FALSE, fig.width = 12}
-plots_CBT <- lapply(variables, function(y) ggplot_density(dt_analysis, "Log CBT", y, palettes[[y]], save = FALSE))
-plots_SCC <- lapply(variables, function(y) ggplot_density(dt_analysis, "Log SCC", y, palettes[[y]], save = FALSE))
+plots_CBT <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogCBT", y, palettes[[y]], save = FALSE))
+plots_SCC <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogSCC", y, palettes[[y]], save = FALSE))
 
 wrap_plots(plots_CBT, ncol = 2)
 wrap_plots(plots_SCC, ncol = 2)
 
-mu <- mean(data$`Log CBT`, na.rm = TRUE)
-var <- var(data$`Log CBT`, na.rm = TRUE)
+mu <- mean(data$LogCBT, na.rm = TRUE)
+var <- var(data$LogCBT, na.rm = TRUE)
 
-x <- seq(min(data$`Log CBT`, na.rm = TRUE), max(data$`Log CBT`, na.rm = TRUE), length.out = 500)
+x <- seq(min(data$LogCBT, na.rm = TRUE), max(data$LogCBT, na.rm = TRUE), length.out = 500)
 df <- data.frame(x = x, y = dnorm(x, mean = mu, sd = sqrt(var)))
 
-p1 <- ggplot(data, aes(x = `Log CBT`)) +
+p1 <- ggplot(data, aes(x = LogCBT)) +
   geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
   geom_line(data = df, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
   labs(title = "Observed distribution vs. Normal distribution",
@@ -151,13 +156,13 @@ p1 <- ggplot(data, aes(x = `Log CBT`)) +
       panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
     )
 
-mu <- mean(data$`Log SCC`, na.rm = TRUE)
-var <- var(data$`Log SCC`, na.rm = TRUE)
+mu <- mean(data$LogSCC, na.rm = TRUE)
+var <- var(data$LogSCC, na.rm = TRUE)
 
-x <- seq(min(data$`Log SCC`, na.rm = TRUE), max(data$`Log SCC`, na.rm = TRUE), length.out = 500)
+x <- seq(min(data$LogSCC, na.rm = TRUE), max(data$LogSCC, na.rm = TRUE), length.out = 500)
 df <- data.frame(x = x, y = dnorm(x, mean = mu, sd = sqrt(var)))
 
-p2 <- ggplot(data, aes(x = `Log SCC`)) +
+p2 <- ggplot(data, aes(x = LogSCC)) +
   geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
   geom_line(data = df, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
   labs(title = "Observed distribution vs. Normal distribution",
@@ -178,9 +183,9 @@ wrap_plots(c(p1, p2), ncol = 2)
 ```{r, analysis.1, echo = FALSE, warning = FALSE, fig.width = 12}
 if (!file.exists("data/results/glm models.rds")) {
   glm_results <- list(
-    LINmodCBT = glm(`Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = gaussian, data = dt_analysis),
+    LINmodCBT = glm(LogCBT ~ Season + Year + Season * Year + RiskIBR + RiskAGAL + RiskPT, family = gaussian, data = dt_analysis),
 
-    LINmodSCC = glm(`Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = gaussian, data = dt_analysis)
+    LINmodSCC = glm(LogSCC ~ Season + Year + Season * Year + RiskIBR + RiskAGAL + RiskPT, family = gaussian, data = dt_analysis)
   )
 
   saveRDS(glm_results, file = "data/results/glm models.rds")
@@ -188,13 +193,13 @@ if (!file.exists("data/results/glm models.rds")) {
 
 if (!file.exists("data/results/mixed models.rds")) {
   mixed_models_results <- list(
-    LINmixedFarmCBT = lmer(formula = `Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), data = dt_analysis, REML = FALSE),
+    LINmixedFarmCBT = lmer(formula = LogCBT ~ Season + Year + Season * Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), data = dt_analysis, REML = FALSE),
 
-    LINmixedYear.FarmCBT = lmer(formula = `Log CBT` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), data = dt_analysis, REML = FALSE),
+    LINmixedYear.FarmCBT = lmer(formula = LogCBT ~ Season + Year + Season * Year + RiskIBR + RiskAGAL + RiskPT + (YearNum|Farm), data = dt_analysis, REML = FALSE),
 
-    LINmixedFarmSCC = lmer(formula = `Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), data = dt_analysis, REML = FALSE),
+    LINmixedFarmSCC = lmer(formula = LogSCC ~ Season + Year + Season * Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), data = dt_analysis, REML = FALSE),
 
-    LINmixedYear.FarmSCC = lmer(formula = `Log SCC` ~ Season + Year + Season * Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), data = dt_analysis, REML = FALSE)
+    LINmixedYear.FarmSCC = lmer(formula = LogSCC ~ Season + Year + Season * Year + RiskIBR + RiskAGAL + RiskPT + (Year_num|Farm), data = dt_analysis, REML = FALSE)
   )
 
   saveRDS(mixed_models_results, file = "data/results/mixed models.rds")
@@ -299,6 +304,45 @@ models <- list(
 )
 
 ggplot_coefficients(models)
+```
+
+```{r, testing.1, echo = FALSE, warning = FALSE, fig.width = 12}
+set.seed(123)
+
+idx <- dt_analysis[, .(rowID = .I[sample(.N, max(1, round(.N * 0.3)))]), by = Farm]$rowID
+
+dt_test  <- dt_analysis[idx]
+dt_train <- dt_analysis[!idx]
+
+dt_test$pred <- predict(gamlss_results$ST2Year.FarmSCC, newdata = dt_test, type = "response", data = dt_train)
+
+MAEfarm <- mean(abs(dt_test$LogCBT - dt_test$pred), na.rm = TRUE)
+RMSEfarm <- sqrt(mean((dt_test$LogCBT - dt_test$pred)^2, na.rm = TRUE))
+
+errors <- dt_test[abs(LogCBT - pred) > 0.5]
+
+summary(errors[, .(LogCBT, Farm = as.factor(Farm), Season, Year, RiskAGAL, RiskIBR, RiskPT)])
+mean(errors$pred - errors$LogCBT, na.rm = TRUE)
+
+allFarms <- unique(dt_analysis$Farm)
+testFarms <- sample(all_farms, round(length(all_farms) * 0.3))
+
+train_ignote <- dt_analysis[!(Farm %in% testFarms)][, Farm := NULL]
+test_ignote  <- dt_analysis[Farm %in% testFarms][, Farm := NULL]
+
+modignoteCBT <- gamlss(formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT,
+    sigma.formula = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT,
+    family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = train_ignote)
+
+test_ignote$pred <- predict(modignoteCBT, newdata = test_ignote, type = "response", data = train_ignote)
+
+MAE <- mean(abs(test_ignote$LogCBT - test_ignote$pred), na.rm = TRUE)
+RMSE <- sqrt(mean((test_ignote$LogCBT - test_ignote$pred)^2, na.rm = TRUE))
+
+errors_ignote <- test_ignote[abs(LogCBT - pred) > 0.5]
+
+summary(errors_ignote[, .(LogCBT, Season, Year, RiskAGAL, RiskIBR, RiskPT)])
+mean(errors_ignote$pred - errors_ignote$LogCBT, na.rm = TRUE)
 ```
 
 ```{r, preparation.2, echo = FALSE, warning = FALSE, fig.width = 12}
@@ -467,10 +511,12 @@ ggplot_gamlss_diagnostics(
 
 ```{r, results.14, echo = FALSE, warning = FALSE, fig.width = 12}
 models <- list(
-  "Generalized Gamma Year|Farm for Log CBT" = gamlss_restricted$GeneralizedGammaYear.FarmCBT,
+  "Generalized Gamma Year|Farm for Log CBT" = gamlss_restricted$GeneralizedGammaFarmCBT,
   "Generalized Gamma Year|Farm for Log SCC" = gamlss_restricted$GeneralizedGammaYear.FarmSCC
   )
 
 ggplot_coefficients(models)
 ```
+
+
 
