@@ -224,7 +224,7 @@ if (!file.exists("data/results/mixed models.rds")) {
 
     LINmixedFarmSCC = lmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), data = dt_analysis, REML = FALSE),
 
-    LINmixedYear.FarmSCC = lmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (Year_num|Farm), data = dt_analysis, REML = FALSE)
+    LINmixedYear.FarmSCC = lmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (YearNum|Farm), data = dt_analysis, REML = FALSE)
   )
 
   saveRDS(mixed_models_results, file = "data/results/mixed models.rds")
@@ -453,11 +453,11 @@ if (!file.exists("data/results/mixed models restricted.rds")) {
   mixed_models_restricted <- list(
     GammaMixedFarmCBT = glmer(formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
 
-    GammaMixedYear.FarmCBT = glmer(formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), family = Gamma(link = "identity"), data = dt),
+    GammaMixedYear.FarmCBT = glmer(formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (YearNum|Farm), family = Gamma(link = "identity"), data = dt),
 
     GammaMixedFarmSCC = glmer(formula = `Log SCC` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
 
-    GammaMixedYear.FarmSCC = glmer(formula = `Log SCC` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (Year_num|Farm), Gamma(link = "identity"), data = dt)
+    GammaMixedYear.FarmSCC = glmer(formula = `Log SCC` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (YearNum|Farm), Gamma(link = "identity"), data = dt)
   )
 
   saveRDS(mixed_models_restricted, file = "data/results/mixed models restricted.rds")
