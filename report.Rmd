@@ -347,7 +347,34 @@ idx <- dt_analysis[, .(rowID = .I[sample(.N, max(1, round(.N * 0.3)))]), by = Fa
 dt_test  <- dt_analysis[idx]
 dt_train <- dt_analysis[!idx]
 
-dt_test$pred <- predict(gamlss_results$ST2Year.FarmSCC, newdata = dt_test, type = "response", data = dt_train)
+allFarms <- unique(dt_analysis$Farm)
+testFarms <- sample(allFarms, round(length(allFarms) * 0.3))
+
+train_ignote <- dt_analysis[!(Farm %in% testFarms)][, Farm := NULL]
+test_ignote  <- dt_analysis[Farm %in% testFarms][, Farm := NULL]
+
+datasets_train <- list(dt_train = dt_train, train_ignote = train_ignote)
+
+if (!file.exists("data/validation/test models.rds")) {
+  plan(multisession, workers = parallel::detectCores() - 1)
+
+  gamlss_test_results <- future_lapply(
+    X = test_models,
+    FUN = function(mod) {
+      run_model_safely(
+        spec = mod,                  # model
+        data = datasets_train        # data
+      )
+    },
+    future.packages = c("gamlss", "nlme"),
+    future.seed = TRUE,
+    future.globals = list(datasets_train = datasets_train, run_model_safely = run_model_safely)
+  )
+
+  saveRDS(gamlss_test_results, file = "data/validation/test models.rds")
+}
+
+dt_test$pred <- predict(test_modCBT, newdata = dt_test, type = "response", data = dt_train)
 
 MAEfarm <- mean(abs(dt_test$LogCBT - dt_test$pred), na.rm = TRUE)
 RMSEfarm <- sqrt(mean((dt_test$LogCBT - dt_test$pred)^2, na.rm = TRUE))
@@ -356,16 +383,6 @@ errors <- dt_test[abs(LogCBT - pred) > 0.5]
 
 summary(errors[, .(LogCBT, Farm = as.factor(Farm), Season, Year, RiskAGAL, RiskIBR, RiskPT)])
 mean(errors$pred - errors$LogCBT, na.rm = TRUE)
-
-allFarms <- unique(dt_analysis$Farm)
-testFarms <- sample(all_farms, round(length(all_farms) * 0.3))
-
-train_ignote <- dt_analysis[!(Farm %in% testFarms)][, Farm := NULL]
-test_ignote  <- dt_analysis[Farm %in% testFarms][, Farm := NULL]
-
-modignoteCBT <- gamlss(formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT,
-    sigma.formula = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT,
-    family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = train_ignote)
 
 test_ignote$pred <- predict(modignoteCBT, newdata = test_ignote, type = "response", data = train_ignote)
 
@@ -441,9 +458,9 @@ wrap_plots(c(p1, p2), ncol = 2)
 ```{r, analysis.2, echo = FALSE, warning = FALSE, fig.width = 12}
 if (!file.exists("data/results/glm models restricted.rds")) {
   glm_restricted <- list(
-    GammaCBT = glm(`Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = Gamma(link = "identity"), data = dt),
+    GammaCBT = glm(LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT, family = Gamma(link = "identity"), data = dt_restricted),
 
-    GammaSCC = glm(`Log SCC` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT`, family = Gamma(link = "identity"), data = dt)
+    GammaSCC = glm(LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT, family = Gamma(link = "identity"), data = dt_restricted)
   )
   
   saveRDS(glm_restricted, file = "data/results/glm models restricted.rds")
@@ -451,20 +468,20 @@ if (!file.exists("data/results/glm models restricted.rds")) {
 
 if (!file.exists("data/results/mixed models restricted.rds")) {
   mixed_models_restricted <- list(
-    GammaMixedFarmCBT = glmer(formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
+    GammaMixedFarmCBT = glmer(formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), family = Gamma(link = "identity"), data = dt_restricted),
 
-    GammaMixedYear.FarmCBT = glmer(formula = `Log CBT` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (YearNum|Farm), family = Gamma(link = "identity"), data = dt),
+    GammaMixedYear.FarmCBT = glmer(formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (YearNum|Farm), family = Gamma(link = "identity"), data = dt_restricted),
 
-    GammaMixedFarmSCC = glmer(formula = `Log SCC` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (1|Farm), family = Gamma(link = "identity"), data = dt),
+    GammaMixedFarmSCC = glmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), family = Gamma(link = "identity"), data = dt_restricted),
 
-    GammaMixedYear.FarmSCC = glmer(formula = `Log SCC` ~ Season + Year + `Risk - IBR` + `Risk - AGAL` + `Risk - PT` + (YearNum|Farm), Gamma(link = "identity"), data = dt)
+    GammaMixedYear.FarmSCC = glmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (YearNum|Farm), Gamma(link = "identity"), data = dt_restricted)
   )
 
   saveRDS(mixed_models_restricted, file = "data/results/mixed models restricted.rds")
 }
 
 if (!file.exists("data/results/gamlss models restricted.rds")) {
-  plan(multisession, workers = 2)
+  plan(multisession, workers = parallel::detectCores() - 1)
 
   gamlss_restricted <- future_lapply(
     X = models_gamlss_restricted,

@@ -447,7 +447,7 @@ ggplot_coefficients <- function(models, colours = NULL, out_dir = "plot/", save 
 
   for (i in seq_along(models)) {
     if (save) {
-      filename <- paste0(names(models)[[i]], " coefficients.png")
+      filename <- "models coefficients.png"
       filepath <- file.path(out_dir, filename)
 
       if (file.exists(filepath)) {
