@@ -7,7 +7,7 @@ library(readxl)
 library(data.table)
 library(checkmate)
 library(naniar)
-library(broom)
+library(broom.mixed)
 library(purrr)
 
 # Data visualization

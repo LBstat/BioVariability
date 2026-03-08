@@ -394,7 +394,10 @@ ggplot_gamlss_diagnostics <- function(obj, xvar = NULL, summaries = TRUE, model 
   wp
 }
 
-ggplot_coefficients <- function(models, colours = NULL, out_dir = "plot/", save = TRUE) {
+library(ggplot2)
+library(dplyr)
+
+ggplot_coefficients <- function(models, colours = NULL, model = "model", out_dir = "plot/", save = TRUE) {
 
   # Assertions
   assertList(models, names = "named", min.len = 1, max.len = 5)
@@ -402,9 +405,7 @@ ggplot_coefficients <- function(models, colours = NULL, out_dir = "plot/", save 
   assertString(out_dir)
   assertFlag(save)
 
-  if (save) {
-    if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
-  }
+  if (save && !dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 
   if (is.null(colours)) {
     colours <- c("#9DC183","#9B1B30", "#DAA520", "#003366", "#9575CD")
@@ -413,7 +414,7 @@ ggplot_coefficients <- function(models, colours = NULL, out_dir = "plot/", save 
 
   plot_data <- list()
 
-  # 1. Extract coefficients
+  # 1. Extract coefficients (mu only)
   for (i in seq_along(models)) {
     plot_data[[i]] <- tidy(models[[i]]) |> filter(parameter == "mu") |> mutate(Model = names(models)[[i]])
   }
@@ -421,8 +422,8 @@ ggplot_coefficients <- function(models, colours = NULL, out_dir = "plot/", save 
   dt <- bind_rows(plot_data)
 
   # 2. Data preparation
-  plot_data_final <- dt |>
-    filter(term != "(Intercept)") |>
+  plot_data_final <- dt %>%
+    filter(term != "(Intercept)") %>%
     mutate(
       term = gsub("`", "", term),
       term = gsub("Risk - ", "", term),
@@ -438,11 +439,10 @@ ggplot_coefficients <- function(models, colours = NULL, out_dir = "plot/", save 
   plot <- ggplot(plot_data_final, aes(x = estimate, y = term, color = Model, shape = Model)) +
     geom_point(size = 2.5, position = position_dodge(width = 1)) +
     geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
-    geom_errorbarh(
-      aes(xmin = estimate - 1.96 * std.error, xmax = estimate + 1.96 * std.error),
-      width = 0.5, position = position_dodge(width = 1)) +
+    geom_errorbarh(aes(xmin = estimate - 1.96 * std.error,
+                       xmax = estimate + 1.96 * std.error),
+                   width = 0.5, position = position_dodge(width = 1)) +
     scale_color_manual(values = colours) +
-    scale_x_continuous(breaks = seq(-0.3, 0.1, by = 0.01)) +
     facet_grid(Group ~ ., scales = "free_y", space = "free_y") +
     labs(
       title = "Comparative analysis of milk quality drivers",
@@ -456,35 +456,29 @@ ggplot_coefficients <- function(models, colours = NULL, out_dir = "plot/", save 
     theme(
       plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
       plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10),
       panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+      panel.grid.minor = element_blank(),
+      legend.position = "top",
+      legend.title = element_text(face = "bold")
     )
 
-  for (i in seq_along(models)) {
-    if (save) {
-      filename <- "models coefficients.png"
-      filepath <- file.path(out_dir, filename)
+  # 4. Save plot (single save)
+  if (save) {
+    filename <- paste0(model, " coefficients.png")
+    filepath <- file.path(out_dir, filename)
 
-      if (file.exists(filepath)) {
-        answer <- readline(paste0("File '", filename, "' already exists. Overwrite? (Y/N): "))
-
-        if (toupper(answer) != "Y") {
-          message("No saving.")
-          return(invisible(NULL))
-        }
+    if (file.exists(filepath)) {
+      answer <- readline(paste0("File '", filename, "' already exists. Overwrite? (Y/N): "))
+      if (toupper(answer) != "Y") {
+        message("No saving.")
+        return(invisible(plot))
       }
-
-      ggsave(
-        filename = filepath,
-        plot = plot,
-        width = 12,
-        height = 6,
-        dpi = 300
-      )
-
-      message("Plot saved to: ", filepath)
     }
+
+    ggsave(filename = filepath, plot = plot, width = 12, height = 6, dpi = 300)
+    message("Plot saved to: ", filepath)
   }
 
   plot

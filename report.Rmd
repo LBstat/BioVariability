@@ -481,7 +481,7 @@ summary(gamlss_results$ST2Year.FarmCBT)
 getSmo(gamlss_results$ST2Year.FarmCBT)
 ```
 
-### Model choice for Log SCC
+
 
 ```{r, results.4, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_SCC <- list(
@@ -525,7 +525,7 @@ models <- list(
   "Skew t distribution type 2 Year|Farm for Log SCC" = gamlss_results$ST2Year.FarmSCC
 )
 
-ggplot_coefficients(models)
+ggplot_coefficients(models, model = "Skew t distribution type 2 Year|Farm")
 ```
 
 ### Model prediction cpacity
@@ -810,6 +810,6 @@ models <- list(
   "Generalized Gamma Year|Farm for Log SCC" = gamlss_restricted$GeneralizedGammaYear.FarmSCC
   )
 
-ggplot_coefficients(models)
+ggplot_coefficients(models, model = "Generalized Gamma Year|Farm")
 ```
 
