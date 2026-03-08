@@ -6,6 +6,14 @@ date: "2026-02-27"
 output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,   # Nasconde i messaggi come quello di geom_smooth
+  warning = FALSE,   # Nasconde gli avvisi (es. righe rimosse con NA)
+  echo = FALSE       # Non mostra il codice, solo i risultati
+)
+```
+
 ## **Introduction**
 
 ### Introduction and Objectives
@@ -97,7 +105,7 @@ dt_year <- dt_analysis[, .(meanLOG_CBT = mean(LogCBT), meanLOG_SCC = mean(LogSCC
 dt_month <- dt_analysis[, .(meanLOG_CBT = mean(LogCBT), meanLOG_SCC = mean(LogSCC)), by = .(Year, Month)][order(Year, Month)]
 
 p_year_cbt <- ggplot(dt_year, aes(x = as.numeric(as.character(Year)), y = meanLOG_CBT, colour = Season)) +
-  geom_smooth(method = "loess", se = FALSE, linewidth = 1) +
+  geom_smooth(method = "loess", se = FALSE, linewidth = 1, quiet = TRUE) +
   scale_color_manual(values = palettes[["Season"]]) +
   labs(
     title = "Mean Log CBT across years",
@@ -115,7 +123,7 @@ p_year_cbt <- ggplot(dt_year, aes(x = as.numeric(as.character(Year)), y = meanLO
     )
 
 p_year_scc <- ggplot(dt_year, aes(x = as.numeric(as.character(Year)), y = meanLOG_CBT, colour = Season)) +
-  geom_smooth(method = "loess", se = FALSE, linewidth = 1) +
+  geom_smooth(method = "loess", se = FALSE, linewidth = 1, quiet = TRUE) +
   scale_color_manual(values = palettes[["Season"]]) +
   labs(
     title = "Mean Log SCC across years",
@@ -133,7 +141,7 @@ p_year_scc <- ggplot(dt_year, aes(x = as.numeric(as.character(Year)), y = meanLO
     )
 
 p_month_cbt <- ggplot(dt_month, aes(x = Month, y=  meanLOG_CBT, colour = Year, group = Year)) +
-  geom_smooth(method = "loess", se = FALSE, linewidth = 1) +
+  geom_smooth(method = "loess", se = FALSE, linewidth = 1, quiet = TRUE) +
   scale_color_manual(values = palettes[["Year"]]) +
   scale_x_continuous(breaks = 1:12) +
   labs(
@@ -154,7 +162,7 @@ p_month_cbt <- ggplot(dt_month, aes(x = Month, y=  meanLOG_CBT, colour = Year, g
     )
 
 p_month_scc <- ggplot(dt_month, aes(x = Month, y = meanLOG_SCC, colour = factor(Year), group = Year)) +
-  geom_smooth(method = "loess", se = FALSE, linewidth = 1) +
+  geom_smooth(method = "loess", se = FALSE, linewidth = 1, quiet = TRUE) +
   scale_color_manual(values = palettes[["Year"]]) +
   scale_x_continuous(breaks = 1:12) +
   labs(

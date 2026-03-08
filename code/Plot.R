@@ -6,12 +6,7 @@ ggplot_density <- function(data, x, y, palette = NULL, out_dir = "plot/", save =
   assertDataFrame(data)
   assertString(x)
   assertString(y)
-  assertList(palette, names = "named")
-
-  lapply(palette, function(x) {
-    assertCharacter(x, any.missing = FALSE)
-  })
-
+  assertCharacter(palette, any.missing = FALSE)
   assertString(out_dir)
   assertFlag(save)
 
