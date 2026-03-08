@@ -394,9 +394,6 @@ ggplot_gamlss_diagnostics <- function(obj, xvar = NULL, summaries = TRUE, model 
   wp
 }
 
-library(ggplot2)
-library(dplyr)
-
 ggplot_coefficients <- function(models, colours = NULL, model = "model", out_dir = "plot/", save = TRUE) {
 
   # Assertions

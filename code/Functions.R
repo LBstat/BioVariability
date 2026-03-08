@@ -175,6 +175,83 @@ model_selection_criteria <- function(obj) {
   return(dt_final)
 }
 
+extract_gamlss_fixed <- function(model, n_mu, n_sigma, n_nu, n_tau) {
+
+  # Assertions
+  assertClass(model, classes = "gamlss")
+
+  # Summary extraction
+  invisible(capture.output(summ_mat <- summary(model)))
+  df_raw <- as.data.frame(as.matrix(summ_mat))
+
+  df_clean <- data.frame(
+    Estimate = round(as.numeric(as.character(df_raw[[1]])), 4),
+    Std_Error = round(as.numeric(as.character(df_raw[[2]])), 4),
+    t_value = round(as.numeric(as.character(df_raw[[3]])), 4),
+    p_value = as.numeric(as.character(df_raw[[4]]))
+  )
+
+  # String manipulation
+  raw_names <- rownames(df_raw)
+  clean_names <- gsub("X\\.[[:alpha:]]*\\.", "Baseline Log", raw_names)
+  clean_names <- gsub("\\.", " ", clean_names)
+
+  clean_names <- vapply(clean_names, function(x) {
+    strsplit(x, split = " ")[[1]][[1]]
+  }, character(1))
+
+  df_clean$Variable <- clean_names
+
+  # Checks
+  total_rows_expected <- n_mu + n_sigma + n_nu + n_tau
+  if (nrow(df_clean) != total_rows_expected) {
+    stop(paste("Model has", nrow(df_clean), "rows, but input has", total_rows_expected))
+  }
+
+  df_clean$Parameter <- c(rep("mu", n_mu), rep("sigma", n_sigma), rep("nu", n_nu), rep("tau", n_tau))
+
+  df_clean$Signif <- cut(df_clean$p_value, breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), labels = c("***", "**", "*", ".", " "))
+  df_clean$p_value <- round(df_clean$p_value, 4)
+
+  df_clean <- df_clean[, c("Parameter", "Variable", "Estimate", "Std_Error", "p_value", "Signif")]
+  colnames(df_clean) <- c("Parameter", "Variable", "Estimate", "Std Error", "Pr(>|t|)", "Signif")
+
+  rownames(df_clean) <- NULL
+  return(df_clean)
+}
+
+extract_random_variance <- function(model) {
+
+  # Assertions
+  assertClass(model, classes = "gamlss")
+
+  # Random effects extraction
+  smo <- getSmo(model)
+  var_corr <- VarCorr(smo)
+
+  df_random <- data.frame(
+    Group = rownames(var_corr),
+    Variance = round(as.numeric(var_corr[, "Variance"]), 4),
+    StdDev = round(as.numeric(var_corr[, "StdDev"]), 4),
+    Correlation = if("Corr" %in% colnames(var_corr)) round(as.numeric(var_corr[, "Corr"]), 4) else NA
+  )
+
+  # String manipulation
+  df_random$Group <- gsub("(Intercept)", "Farm (Random Intercept)", df_random$Group)
+  df_random$Group <- gsub("YearNum", "Year (Random Slope)", df_random$Group)
+  df_random$Group <- gsub("Residual", "Residual variance", df_random$Group)
+
+  df_random$Correlation <- as.character(df_random$Correlation)
+  df_random$Correlation[is.na(df_random$Correlation)] <- "-"
+
+  rownames(df_random) <- NULL
+
+  return(df_random)
+}
+
+# Esempio:
+# tab_random <- extract_random_variance(gamlss_results$ST2Year.FarmCBT)
+
 evaluate_gamlss_performance <- function(model, test_data, train_data, target_var, threshold = 0.5) {
 
   # Assertions

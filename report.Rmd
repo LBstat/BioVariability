@@ -476,9 +476,9 @@ The final model adopts a Skew t Azzalini Type 2 (ST2) distribution, selected for
 The model architecture includes a mixed-effects structure, with a random intercept for Farm and a random slope for Year_num, allowing the model to capture both farm-level management heterogeneity and temporal dynamics across years. The estimated values of the shape parameters, ν = 2.48 and τ = 3.15, indicate that the model effectively accounts for the positive skewness and heavy tails inherent in the distribution of bacterial load (Log TBC). By modeling these characteristics explicitly, the ST2 distribution reduces the distorting influence of extreme observations and outliers, leading to more stable and reliable parameter estimates.
 
 ```{r, results.3, echo = FALSE, warning = FALSE, fig.width = 12}
-summary(gamlss_results$ST2Year.FarmCBT)
+extract_gamlss_fixed(gamlss_results$ST2Year.FarmCBT, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 1)
 
-getSmo(gamlss_results$ST2Year.FarmCBT)
+extract_random_variance(gamlss_results$ST2Year.FarmCBT)
 ```
 
 
@@ -512,9 +512,9 @@ ggplot_gamlss_diagnostics(
 ```
 
 ```{r, results.6, echo = FALSE, warning = FALSE, fig.width = 12}
-summary(gamlss_results$BCTYear.FarmSCC)
+extract_gamlss_fixed(gamlss_results$BCTYear.FarmSCC, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 1)
 
-getSmo(gamlss_results$BCTYear.FarmSCC)
+extract_random_variance(gamlss_results$BCTYear.FarmSCC)
 ```
 
 ### Results
@@ -763,9 +763,9 @@ model_selection_criteria(objects_restricted_CBT)
 ```
 
 ```{r, results.9, echo = FALSE, warning = FALSE, fig.width = 12}
-summary(gamlss_restricted$GeneralizedGammaFarmCBT)
+extract_gamlss_fixed(gamlss_restricted$GeneralizedGammaFarmCBT, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 0)
 
-getSmo(gamlss_restricted$GeneralizedGammaFarmCBT)
+extract_random_variance(gamlss_restricted$GeneralizedGammaFarmCBT)
 ```
 
 ```{r, results.10, echo = FALSE, warning = FALSE, fig.width = 12}
@@ -792,9 +792,9 @@ model_selection_criteria(objects_restricted_SCC)
 ```
 
 ```{r, results.12, echo = FALSE, warning = FALSE, fig.width = 12}
-summary(gamlss_restricted$GeneralizedGammaYear.FarmSCC)
+extract_gamlss_fixed(gamlss_restricted$GeneralizedGammaYear.FarmSCC, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 0)
 
-getSmo(gamlss_restricted$GeneralizedGammaYear.FarmSCC)
+extract_random_variance(gamlss_restricted$GeneralizedGammaYear.FarmSCC)
 ```
 
 ```{r, results.13, echo = FALSE, warning = FALSE, fig.width = 12}
