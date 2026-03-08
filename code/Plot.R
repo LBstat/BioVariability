@@ -6,11 +6,19 @@ ggplot_density <- function(data, x, y, palette = NULL, out_dir = "plot/", save =
   assertDataFrame(data)
   assertString(x)
   assertString(y)
-  
+  assertList(palette, names = "named")
+
+  lapply(palette, function(x) {
+    assertCharacter(x, any.missing = FALSE)
+  })
+
+  assertString(out_dir)
+  assertFlag(save)
+
   if (save && !dir.exists(out_dir)) {
     dir.create(out_dir, recursive = TRUE)
   }
-  
+
   plot <- ggplot(data, aes(x = .data[[x]], y = .data[[y]], fill = .data[[y]])) +
     geom_density_ridges(alpha = 0.7, bandwidth = 0.05)
 
@@ -54,6 +62,9 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
   # Assertions
   assertClass(obj, classes = "glm")
   assertDataFrame(data)
+  assertString(model)
+  assertString(out_dir)
+  assertFlag(save)
 
   if (missing(y)) stop("Response variable is missing")
   if (save) {
@@ -210,12 +221,15 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
 # Function that performs graphical diagnostics for GAMLSS-objects
 ggplot_gamlss_diagnostics <- function(obj, xvar = NULL, summaries = TRUE, model = "gamlss", out_dir = "plot/", save = TRUE) {
 
+  # Assertions
+  assertClass(obj, classes = "gamlss")
+  assertFlag(summaries)
+  assertString(model)
+  assertString(out_dir)
+
   if (save) {
     if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
   }
-
-  # Assertions
-  assertClass(obj, classes = "gamlss")
 
   residx <- residuals(obj)
   w <- obj$weights
@@ -385,6 +399,8 @@ ggplot_coefficients <- function(models, colours = NULL, out_dir = "plot/", save 
   # Assertions
   assertList(models, names = "named", min.len = 1, max.len = 5)
   assertCharacter(colours, any.missing = FALSE, null.ok = TRUE)
+  assertString(out_dir)
+  assertFlag(save)
 
   if (save) {
     if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)

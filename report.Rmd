@@ -356,43 +356,91 @@ test_ignote  <- dt_analysis[Farm %in% testFarms][, Farm := NULL]
 datasets_train <- list(dt_train = dt_train, train_ignote = train_ignote)
 
 if (!file.exists("data/validation/test models.rds")) {
-  plan(multisession, workers = parallel::detectCores() - 1)
+  gamlss_test_results <- list(
+    testmodCBTFarm = gamlss(
+      formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
+      sigma.formula = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+      family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"),
+      control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30), data = dt_train
+    ),
 
-  gamlss_test_results <- future_lapply(
-    X = test_models,
-    FUN = function(mod) {
-      run_model_safely(
-        spec = mod,                  # model
-        data = datasets_train        # data
-      )
-    },
-    future.packages = c("gamlss", "nlme"),
-    future.seed = TRUE,
-    future.globals = list(datasets_train = datasets_train, run_model_safely = run_model_safely)
+    testmodSCCFarm = gamlss(
+      formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
+      sigma.formula = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+      family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"),
+      control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30), data = dt_train
+    ),
+
+    testmodCBT = gamlss(
+      formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT,
+      sigma.formula = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT,
+      family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"),
+      control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30), data = train_ignote
+    ),
+
+    testmodSCC = gamlss(
+      formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT,
+      sigma.formula = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT,
+      family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"),
+      control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30), data = train_ignote
+    )
   )
 
   saveRDS(gamlss_test_results, file = "data/validation/test models.rds")
 }
 
-dt_test$pred <- predict(test_modCBT, newdata = dt_test, type = "response", data = dt_train)
+gamlss_test_results <- readRDS("data/validation/test models.rds")
 
-MAEfarm <- mean(abs(dt_test$LogCBT - dt_test$pred), na.rm = TRUE)
-RMSEfarm <- sqrt(mean((dt_test$LogCBT - dt_test$pred)^2, na.rm = TRUE))
+validationCBT <- evaluate_gamlss_performance(gamlss_test_results$testmodCBTFarm, test_data = dt_test, train_data = dt_train, target_var = "LogCBT")
 
-errors <- dt_test[abs(LogCBT - pred) > 0.5]
+validationCBT$metrics
 
-summary(errors[, .(LogCBT, Farm = as.factor(Farm), Season, Year, RiskAGAL, RiskIBR, RiskPT)])
-mean(errors$pred - errors$LogCBT, na.rm = TRUE)
+summary(validationCBT$errors_data[, .(LogCBT, Farm = as.factor(Farm), Season, Year, RiskAGAL, RiskIBR, RiskPT)])
+mean(validationCBT$errors_data$pred - validationCBT$errors_data$LogCBT, na.rm = TRUE)
 
-test_ignote$pred <- predict(modignoteCBT, newdata = test_ignote, type = "response", data = train_ignote)
+validationSCC <- evaluate_gamlss_performance(gamlss_test_results$testmodSCCFarm, test_data = dt_test, train_data = dt_train, target_var = "LogSCC")
 
-MAE <- mean(abs(test_ignote$LogCBT - test_ignote$pred), na.rm = TRUE)
-RMSE <- sqrt(mean((test_ignote$LogCBT - test_ignote$pred)^2, na.rm = TRUE))
+validationSCC$metrics
 
-errors_ignote <- test_ignote[abs(LogCBT - pred) > 0.5]
+summary(validationSCC$errors_data[, .(LogSCC, Farm = as.factor(Farm), Season, Year, RiskAGAL, RiskIBR, RiskPT)])
+mean(validationSCC$errors_data$pred - validationSCC$errors_data$LogCBT, na.rm = TRUE)
 
-summary(errors_ignote[, .(LogCBT, Season, Year, RiskAGAL, RiskIBR, RiskPT)])
-mean(errors_ignote$pred - errors_ignote$LogCBT, na.rm = TRUE)
+validationCBTfixed <- evaluate_gamlss_performance(gamlss_test_results$testmodCBT, test_data = test_ignote, train_data = train_ignote, target_var = "LogCBT")
+
+validationCBTfixed$metrics
+
+summary(validationCBTfixed$errors_data[, .(LogCBT, Season, Year, RiskAGAL, RiskIBR, RiskPT)])
+mean(validationCBTfixed$errors_data$pred - validationCBTfixed$errors_data$LogCBT, na.rm = TRUE)
+
+validationSCCfixed <- evaluate_gamlss_performance(gamlss_test_results$testmodSCC, test_data = test_ignote, train_data = train_ignote, target_var = "LogSCC")
+
+validationSCCfixed$metrics
+
+summary(validationSCCfixed$errors_data[, .(LogSCC, Season, Year, RiskAGAL, RiskIBR, RiskPT)])
+mean(validationSCCfixed$errors_data$pred - validationSCCfixed$errors_data$LogCBT, na.rm = TRUE)
+```
+
+
+```{r, prediction.1, echo = FALSE, warning = FALSE, fig.width = 12}
+if (!file.exists("data/final models for prediction/test models.rds")) {
+  gamlss_final_models <- list(
+    ST2Year.FarmCBT = gamlss(
+      formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
+      sigma.formula = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+      family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"),
+      control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30), data = dt_analysis
+    ),
+
+    BCTYear.FarmSCC = gamlss(
+      formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
+      sigma.formula = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+      family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"),
+      control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30), data = dt_analysis
+    )
+  )
+
+  saveRDS(gamlss_test_results, file = "data/final models for prediction/test models.rds")
+}
 ```
 
 ### Restricted analysis

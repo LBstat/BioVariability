@@ -148,29 +148,3 @@ models_gamlss_restricted <- list(
     family = exGAUS(mu.link = "identity", sigma.link = "log", nu.link = "log"), data = "dt_restricted"
   )
 )
-
-test_models <- list(
-  testmodCBTFarm =list(
-  formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
-  sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
-  family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "dt_train"
-  ),
-
-  testmodSCCFarm =list(
-    formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
-    family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "dt_train"
-  ),
-
-  testmodCBT =list(
-    formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT,
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
-    family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "train_ignote"
-  ),
-  
-  testmodSCC =list(
-    formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT,
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
-    family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "train_ignote"
-  )
-)

@@ -1,6 +1,11 @@
 
 run_model_safely <- function(spec, data, optimizer = "nlimnb") {
-  require(gamlss)
+
+  # Assertions
+  assertList(spec, names = "named")
+  assertDataFrame(data, any.missing = FALSE)
+  assertString(optimizer)
+  assertChoice(optimizer, choices = c("nlimnb", "optim"))
 
   # 1. Get the data
   current_data <- as.data.frame(data[[spec$data]])
@@ -27,26 +32,26 @@ run_model_safely <- function(spec, data, optimizer = "nlimnb") {
   # 4. Run model
   if (optimizer == "nlimnb") {
     result <- tryCatch({
-      gamlss::gamlss(
+      gamlss(
         formula = formula_mu,
         sigma.formula = formula_sigma,
         family = spec$family, 
         data = current_data,
         method = RS(),
-        control = gamlss.control(trace = FALSE)
+        control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30)
       )
     }, error = function(e) {
       return(list(status = "error", message = e$message, spec = spec))
     })
   } else {
     result <- tryCatch({
-      gamlss::gamlss(
+      gamlss(
         formula = formula_mu,
         sigma.formula = formula_sigma,
         family = spec$family, 
         data = current_data,
         method = RS(),
-        control = gamlss.control(trace = FALSE),
+        control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30),
         c.control = lmeControl(opt = "optim", maxIter = 50, msMaxIter = 50)
       )
     }, error = function(e) {
@@ -60,7 +65,7 @@ run_model_safely <- function(spec, data, optimizer = "nlimnb") {
 model_selection_criteria <- function(obj) {
   warning("Models should be compared only if they share the same response variable")
   message("Computation of selection criteria... Handling successes and failures")
-  
+
   # 1. Pre-processing
   obj_processed <- lapply(obj, function(x) {
     if (is.list(x) && !inherits(x, c("gamlss", "glmerMod", "lmerMod", "glm", "lm"))) {
@@ -71,7 +76,7 @@ model_selection_criteria <- function(obj) {
       return(x)
     }
   })
-  
+
   res_list <- lapply(obj_processed, function(x) {
 
     # Failed model
@@ -96,7 +101,7 @@ model_selection_criteria <- function(obj) {
 
       } else if (inherits(x, "glmerMod")) {
         # glmerMod --> use of DHARMa package to derive uniform residuals
-        sim <- DHARMa::simulateResiduals(x, n = 250, plot = FALSE)
+        sim <- simulateResiduals(x, n = 250, plot = FALSE)
 
         # qnorm transforms residuals in standard normal residuals
         qnorm(pmax(1e-7, pmin(sim$scaledResiduals, 1 - 1e-7)))
@@ -107,7 +112,7 @@ model_selection_criteria <- function(obj) {
         
       } else {
         # Fallback --> other possible GLMs
-        sim <- DHARMa::simulateResiduals(x, n = 250)
+        sim <- simulateResiduals(x, n = 250)
         qnorm(pmax(1e-7, pmin(sim$scaledResiduals, 1 - 1e-7)))
       }
     }, error = function(e) { 
@@ -168,4 +173,50 @@ model_selection_criteria <- function(obj) {
   dt_final$Model <- names(obj_processed)
 
   return(dt_final)
+}
+
+evaluate_gamlss_performance <- function(model, test_data, train_data, target_var, threshold = 0.5) {
+
+  # Assertions
+  assert(
+    checkClass(model, classes = "gamlss"),
+    checkClass(model, classes = "glmerMod"),
+    checkClass(model, classes = "lmerMod"),
+    checkClass(model, classes = "glm"),
+    checkClass(model, classes = "lm"),
+    combine = "or"
+  )
+  assertDataFrame(test_data, any.missing = FALSE)
+  assertDataFrame(train_data, any.missing = FALSE)
+  assertString(target_var, na.ok = FALSE, null.ok = FALSE)
+  assertNumber(threshold)
+
+  # 1. Predictions
+  preds <- predict(model, newdata = test_data, type = "response", data = train_data)
+
+  # 2. Error computations
+  actual <- test_data[[target_var]]
+  absolute_residuals <- abs(actual - preds)
+
+  MAE  <- mean(absolute_residuals, na.rm = TRUE)
+  MSE <- mean((actual - preds)^2, na.rm = TRUE)
+  RMSE <- sqrt(mean((actual - preds)^2, na.rm = TRUE))
+
+  BIAS <- mean(preds - actual, na.rm = TRUE) 
+
+  # 3. Critical cases
+  test_dt <- copy(test_data)
+  test_dt[, pred := preds]
+  test_dt[, diff := abs(get(target_var) - pred)]
+
+  errors_df <- test_dt[diff > threshold]
+
+  # 4. Output
+  result <- list(
+    metrics = data.table(MAE = MAE, MSE = MSE, RMSE = RMSE, BIAS = BIAS, N_Errors = nrow(errors_df)),
+    errors_data = errors_df,
+    predictions = preds
+  )
+
+  return(result)
 }
