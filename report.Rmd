@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 
 ## **Introduction**
 
-### Introduction and Objectives
+### Study Objectives
 
 Milk quality is a crucial aspect of dairy production, influencing both food safety and the technological characteristics of the final product. Two key parameters used to assess udder health and milk quality are the Total Bacterial Count (TBC) and the Somatic Cell Count (SCC). These indicators provide information on microbial contamination and udder inflammation, respectively, and are commonly expressed both in absolute terms and on a logarithmic scale, the latter being preferred for statistical analysis.
 
@@ -32,9 +32,9 @@ This study aims to analyze data from bulk milk samples collected between 2016 an
 
 The central question of this study is to identify statistically and biologically significant differences in TBC and SCC.
 
-## **Data analysis**
+## **Data Analysis**
 
-### Data preparation and pre-processing
+### 1.1 Data Preparation and Pre-Processing
 
 From the original dataset containing 89,993 records, missing data were removed. These missing values were characterized as MAR (Missing at Random) and accounted for only a marginal proportion (~4.7%). Only variables relevant to the analysis objectives were retained:
 
@@ -185,13 +185,13 @@ p_month_scc <- ggplot(dt_month, aes(x = Month, y = meanLOG_SCC, colour = factor(
 wrap_plots(c(p_year_cbt, p_year_scc, p_month_cbt, p_month_scc), ncol = 2)
 ```
 
-### Descriptive analysis
+### 1.2 Descriptive Analysis
 
 Analyzing the shape of the distributions is essential to justify the statistical approach used.
 
-- Log SCC (Somatic Cells): The distribution shows a symmetric bell-shaped form that closely approximates the Normal curve (red line). The close alignment between the observed and theoretical densities indicates that a standard linear model would be sufficiently accurate for this parameter.
+- Log SCC (Somatic Cells Count): The distribution shows a symmetric bell-shaped form that closely approximates the Normal curve (red line). Beside a long tail towards low values, the close alignment between the observed and theoretical densities indicates that a standard linear model would be sufficiently accurate for this parameter.
  
-- Log TBC (Total Bacterial Count): The distribution significantly deviates from normality. A marked multimodality is observed, with frequent peaks in the low-to-mid range and a long tail (skewness) towards high values (above 6.0 log). This irregularity justifies the adoption of more complex models (such as GAMLSS), capable of modeling not only the mean but also the shape and variability of the distribution.
+- Log TBC (Total Bacterial Count): The distribution significantly deviates from normality. A marked multimodality is observed, with frequent peaks in the low-to-mid range and a long tail (skewness) towards high values (above 6.0 log). This irregularity justifies the adoption of more complex models, capable of modeling not only the mean but also the shape and variability of the distribution.
 
 ```{r, exploration.2, echo = FALSE, warning = FALSE, fig.width = 12}
 mu <- mean(data$LogCBT, na.rm = TRUE)
@@ -239,7 +239,7 @@ p2 <- ggplot(data, aes(x = LogSCC)) +
 wrap_plots(c(p1, p2), ncol = 2)
 ```
 
-Stratified density plots allow visualization of how the risk profile shifts the entire TBC distribution.
+Stratified density plots allow visualization of how the risk profile shifts the entire logarithmic TBC distribution.
 
 1. Impact of Herd Health Factors on Bacterial Count (Ridge Plots CBT):
 
@@ -251,29 +251,28 @@ Stratified density plots allow visualization of how the risk profile shifts the 
 
 - Seasonality: The seasonal effect is confirmed, with the "Winter" distribution concentrated at lower values and the "Summer" distribution more spread toward higher values.
 
-2. Impact of Herd Health Factors on Somatic Cells (Ridge Plots SCC):
-
-The comparison with SCC reveals a different dynamic than bacterial count.
-
-Unlike TBC, SCC distributions across risk factors appear much more homogeneous and overlapping.
-Lack of Clear Shifts: No major shifts in density peaks are observed between High and Low risk classes, except for a slight upward tendency for Agalactiae risk. This suggests that while herd health plans (PT, IBR, AGAL) have a direct and pronounced impact on milk bacterial contamination (TBC), their effect on somatic cells (SCC) is more subtle or mediated by other management factors not represented in these plots.
-
-Overall, the graphs indicate that Total Bacterial Count (TBC) is the parameter most sensitive to herd health status.
-Based on both the graphical analysis of the distributions and the fitDist function (from the R GAMLSS package), a set of models compatible with the observed distributions of LogTBC and LogSCC was selected. For both variables, linear models, linear mixed models, and GAMLSS models with linear, Box-Cox t transformation, and Skewed t Type 2 distributions were trained.
-The mixed-effects and GAMLSS model structures include random intercepts and random slopes to differentiate the impact of different farms and years, as we assume that farms have varying health conditions and different trends over time.
-
 ```{r, exploration.3, echo = FALSE, warning = FALSE, fig.width = 12}
 plots_CBT <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogCBT", y, palettes[[y]], save = FALSE))
-plots_SCC <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogSCC", y, palettes[[y]], save = FALSE))
 
 wrap_plots(plots_CBT, ncol = 2)
+```
+
+2. Impact of Herd Health Factors on Somatic Cells (Ridge Plots SCC):
+
+The comparison with SCC reveals a different dynamic than bacterial count. Unlike TBC, SCC distributions across risk factors appear much more homogeneous and overlapping. No major shifts in density peaks are observed between High and Low risk classes, except for a slight upward tendency for Agalactiae risk. This suggests that while herd health plans (PT, IBR, AGAL) have a direct and pronounced impact on milk bacterial contamination (TBC), their effect on somatic cells (SCC) is more subtle or mediated by other management factors not represented in these plots.
+
+```{r, exploration.4, echo = FALSE, warning = FALSE, fig.width = 12}
+plots_SCC <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogSCC", y, palettes[[y]], save = FALSE))
+
 wrap_plots(plots_SCC, ncol = 2)
 ```
 
-## Theoretical Background on GAMLSS and Mixed‑Effects Models
+Overall, the graphs indicate that Total Bacterial Count (TBC) is the parameter most sensitive to herd health status. Based on both the graphical analysis of the distributions and the fitDist function (from the R GAMLSS package), a set of models compatible with the observed distributions of LogTBC and LogSCC was selected. For both variables, linear models, linear mixed models, and GAMLSS models with linear, Box-Cox t transformation, and Skewed t Type 2 distributions were trained.
+The mixed-effects and GAMLSS model structures include random intercepts and random slopes to differentiate the impact of different farms and years, as we assume that farms have varying health conditions and different trends over time.
+
+## **Theoretical Background on GAMLSS and Mixed‑Effects Models**
 
 Mixed-Effects Models:
-
 Mixed-effects models are statistical models that include both fixed effects and random effects, allowing the analysis of hierarchical or clustered data structures. In the present study, observations are grouped within farms and years, implying that measurements collected from the same farm or during the same year may be correlated.
 
 The general formulation of a linear mixed-effects model is:
@@ -331,9 +330,7 @@ $$
 In the context of this study, random effects are introduced to account for heterogeneity among farms and temporal variability across years, reflecting differences in farm management, sanitary conditions, and long-term production dynamics.
 
 Generalized Additive Models for Location, Scale and Shape (GAMLSS):
-
-Generalized Additive Models for Location, Scale and Shape (GAMLSS) extend generalized linear models by allowing all parameters of the response distribution to be modeled as functions of explanatory variables.
-Instead of modeling only the conditional mean of the response variable, GAMLSS assumes that the response follows a parametric distribution characterized by up to four parameters:
+Generalized Additive Models for Location, Scale and Shape (GAMLSS) extend generalized linear models by allowing all parameters of the response distribution to be modeled as functions of explanatory variables. Instead of modeling only the conditional mean of the response variable, GAMLSS assumes that the response follows a parametric distribution characterized by up to four parameters:
 $$
 Y_i \sim D(\mu_i, \sigma_i, \nu_i, \tau_i)
 $$
@@ -360,10 +357,7 @@ where $g_k(\cdot)$ represents a suitable link function.
 This modeling framework allows the distribution of the response variable to change according to explanatory variables, capturing not only shifts in the mean but also changes in variability, asymmetry, and tail behavior.
 
 GAMLSS with Random Effects:
-
-Random effects can also be incorporated into the predictors of GAMLSS models in order to account for hierarchical data structures.
-
-For example, the location parameter may include random effects associated with farms and years:
+Random effects can also be incorporated into the predictors of GAMLSS models in order to account for hierarchical data structures. For example, the location parameter may include random effects associated with farms and years:
 $$
 \text{LogCBT}_{ijt} \sim D(\mu_{ijt}, \sigma_{ijt}, \nu_{ijt}, \tau_{ijt})
 $$
@@ -385,7 +379,7 @@ u_{Year_t} \sim N(0, \sigma^2_{Year})
 $$
 This specification allows the model to capture both fixed effects associated with sanitary risk factors and seasonal variation, and random variability related to farm-specific and year-specific effects.
 
-### Comparative Analysis and Validation of Model Architectures
+## **Comparative Analysis and Validation of Model Architectures**
 
 ```{r, analysis.1, echo = FALSE, warning = FALSE, fig.width = 12}
 if (!file.exists("data/results/glm models.rds")) {
@@ -436,8 +430,10 @@ mixed_models_results <- readRDS(file = "data/results/mixed models.rds")
 gamlss_results <- readRDS(file = "data/results/gamlss models.rds")
 ```
 
+### 3.1 Log CBT Models
+
 Among the different model architectures tested for the estimation of bacterial load (Log TBC), it is evident that increasing model complexity corresponds to a substantial reduction in both the AIC (Akaike Information Criterion) and BIC (Bayesian Information Criterion). These criteria respectively provide a measure of model goodness-of-fit and a penalty for excessive parameterization.
-The dramatic reduction in both criteria (from an AIC of 91359.97 for the linear model to -1906.04 for the GAMLSS ST2 model) indicates that simple linear models and even linear mixed models (LMMs) with random intercepts and random slopes struggle to adequately capture the underlying structure of the data. In contrast, the flexibility of GAMLSS models — due to their ability to model not only the mean but also the variance, skewness, and kurtosis of the distribution — allows for a substantially improved fit to the observed data.
+The dramatic reduction in both criteria (from an AIC of 91468.97 for the linear model to -1906.04 for the GAMLSS ST2 model) indicates that simple linear models and even linear mixed models (LMMs) with random intercepts and random slopes struggle to adequately capture the underlying structure of the data. In contrast, the flexibility of GAMLSS models allows for a substantially improved fit to the observed data.
 
 ```{r, results.1, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_CBT <- list(
@@ -461,7 +457,7 @@ Limitations of Linear Models:
 For all linear models (LM and LMM), severe distortions are observed in the distribution tails. In particular, skewness parameters range between 1.10 and 1.85, while kurtosis values range from 5.6 to 10.6. These values confirm the inability of these models to properly account for the non-Gaussian distribution of TBC observed in the preliminary histogram analysis.
 
 Performance of GAMLSS Models (BCT and ST2):
-Models based on the Box-Cox t (BCT) and Skew t type 2 (ST2) distributions show skewness values close to zero and kurtosis values close to three, which are consistent with the theoretical parameters of a normal distribution.
+Beside the drastic improvement in the AIC and BIC values, Models based on the Box-Cox t (BCT) and Skew t type 2 (ST2) distributions show skewness values close to 0 and kurtosis values close to 3, which are consistent with the theoretical parameters of a normal distribution.
 
 Filliben Correlation Coefficient:
 The goodness of this fit is further confirmed by the Filliben correlation coefficient, whose values range between 0 and 1. For both GAMLSS distributions, the coefficient exceeds 0.99, indicating that the residual distribution closely follows the bisector of the Q–Q plot.
@@ -480,18 +476,79 @@ ggplot_gamlss_diagnostics(
 
 Graphical diagnostics further support the conclusions derived from the numerical metrics. In particular, the comparison of Q–Q plots highlights how the ST2 distribution resolves the deficiencies observed in the left tail of the BCT distribution. This improvement eliminates residual distortions and ensures greater stability in the parameter estimates.
 
-The final model adopts a Skew t Azzalini Type 2 (ST2) distribution, selected for its ability to simultaneously model the location (μ), scale (σ), skewness (ν), and kurtosis (τ) parameters of the response distribution.
-The model architecture includes a mixed-effects structure, with a random intercept for Farm and a random slope for Year_num, allowing the model to capture both farm-level management heterogeneity and temporal dynamics across years. The estimated values of the shape parameters, ν = 2.48 and τ = 3.15, indicate that the model effectively accounts for the positive skewness and heavy tails inherent in the distribution of bacterial load (Log TBC). By modeling these characteristics explicitly, the ST2 distribution reduces the distorting influence of extreme observations and outliers, leading to more stable and reliable parameter estimates.
+The final model adopts a Skew t Azzalini Type 2 (ST2) distribution, selected for its ability to simultaneously model the location ($μ$), scale ($σ$), skewnes ($ν$), and kurtosis ($τ$) parameters of the response distribution. The model architecture includes a mixed-effects structure, with a random intercept for Farm and a random slope for Year_num, allowing the model to capture both farm-level management heterogeneity and temporal dynamics across years. The estimated values of the shape parameters, $ν$ = 2.48 and $τ$ = 3.15, indicate that the model effectively accounts for the positive skewness and heavy tails inherent in the distribution of bacterial load (Log TBC). By modeling these characteristics explicitly, the ST2 distribution reduces the distorting influence of extreme observations and outliers, leading to more stable and reliable parameter estimates.
 
 ```{r, results.3, echo = FALSE, warning = FALSE, fig.width = 12}
 extract_gamlss_fixed(gamlss_results$ST2Year.FarmCBT, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 1)
+```
 
+1. Analysis of the Mean Coefficients ($μ$)
+The coefficients associated with the $μ$ parameter quantify the effect of predictors on the expected value of Log TBC.
+
+1.1 Impact of Herd Health Status (Main Drivers)
+Herd health status emerges as the primary predictor of microbiological milk quality, with effects substantially larger than those associated with seasonal factors.
+
+- Agalactiae (Risk – AGAL Low risk): This represents the most powerful reduction factor, with a coefficient of −0.2427. The absence of Streptococcus agalactiae is associated with a substantial decrease in baseline TBC.
+
+- Paratuberculosis (Risk – PT Low risk): This factor also shows a strong impact, reducing the average bacterial load by −0.1830 log units.
+
+- IBR (Risk – IBR): Although statistically significant, this factor shows a smaller effect and an opposite sign for low-risk classes (+0.0121). This suggests that the relationship between IBR risk status and TBC may be mediated by more complex farm-level dynamics compared to PT and AGAL.
+
+1.2 Seasonal and Temporal Effects
+
+- Season: Summer (SeasonSummer) is associated with an increase in bacterial load (+0.0082), whereas winter and spring show significant reductions (−0.0268 and −0.0311, respectively) relative to autumn.
+
+- Temporal Trend: The years 2018 and 2019 show a systematic reduction compared to 2016, suggesting a general improvement in microbiological milk quality during the central years of the study period.
+
+2. Analysis of Variability ($σ$) and Quality Stability
+The $σ$ parameter models the dispersion of the response variable and therefore reflects the predictability and stability of milk quality.
+
+- Health Status Effect: Farms classified as Low Risk for Paratuberculosis exhibit lower variability (−0.1587 log units). This indicates that herd health improvement not only reduces the average bacterial load but also leads to a more stable and predictable production quality.
+
+- Summer Effect: During summer, in addition to an increase in the mean value, a substantial increase in variability is observed (+0.1891). This suggests that summer milk is not only characterized by higher bacterial loads but is also more prone to sudden and unpredictable spikes.
+
+```{r, results.4, echo = FALSE, warning = FALSE, fig.width = 12}
 extract_random_variance(gamlss_results$ST2Year.FarmCBT)
 ```
 
+3. Variance Decomposition (Random Effects)
+The integration of the mixed-effects component allows the structural influence of farms and temporal dynamics to be quantified.
 
+3.1 Intraclass Correlation Coefficient (ICC)
+The variance associated with the random intercept for farms
+$$
+\sigma^2_{Farm} \approx 0.077
+$$
+relative to the residual variance
+$$
+\sigma^2_{Res} \approx 1.006
+$$
+yields an Intraclass Correlation Coefficient (ICC) of approximately:
+$$
+ICC =
+\frac{0.077}{0.077 + 1.006}
+\approx 0.071
+$$
+This value indicates that, after accounting for sanitary and seasonal factors, about 7.1% of the total variability is attributable to the specific identity of the farm (management practices, infrastructure, and hygiene protocols).
 
-```{r, results.4, echo = FALSE, warning = FALSE, fig.width = 12}
+3.2 Temporal Evolution and Convergence
+
+Random Slope (YearNum):
+The estimated standard deviation of 0.0412 confirms that each farm follows its own trajectory of improvement or deterioration in milk quality over time.
+
+Intercept–Slope Correlation (−0.319):
+The negative correlation indicates that farms with initially higher TBC levels (higher intercepts) experienced faster improvement rates over time. This phenomenon suggests a convergence toward higher quality standards, likely driven by targeted corrective interventions implemented in the most problematic farms.
+
+Conclusions:
+The ST2 model demonstrates that bacterial load in milk is primarily driven by the herd health status of the farm, with Paratuberculosis and Agalactiae acting as dominant drivers both in reducing the mean bacterial levels ($μ$) and stabilizing the variance ($σ$).
+Farm identity remains a significant component of variability (ICC ≈ 7.1%), highlighting how the integration of sanitary control programs and effective farm management practices represents the key strategy for ensuring consistent microbiological milk quality.
+
+### 3.2 Log SCC Models
+
+The comparative analysis of models for Somatic Cell Count (Log SCC) reveals a particularly interesting scenario, with several key differences compared to the results obtained for Total Bacterial Count (Log TBC).
+Although the general pattern of model improvement remains similar, the statistical nature of SCC, which is closer to a normal distribution but characterized by extremely heavy tails, makes the diagnostic results even more striking.
+
+```{r, results.5, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_SCC <- list(
   "Linear Model" = glm_results$LINmodSCC,
   "Linear Mixed Model 1|Farm" = mixed_models_results$LINmixedFarmSCC,
@@ -507,7 +564,24 @@ objects_SCC <- list(
 model_selection_criteria(objects_SCC)
 ```
 
-```{r, results.5, echo = FALSE, warning = FALSE, fig.width = 12}
+A clear progression in the reduction of AIC and BIC values is observed as model structures evolve toward the GAMLSS framework.
+
+Limitations of Linear Models:
+The analysis begins with models showing an AIC of −46607. The inclusion of random effects (Farm and Year | Farm) almost doubles the quality of the fit (AIC −92109), indicating that farm-level variability plays an even more critical role in explaining SCC variation than in the case of bacterial count.
+
+GAMLSS Models Performance: 
+Models based on heavy-tailed distributions (BCT and ST2) achieve substantially improved performance, reaching AIC values below −128000. In this case, the Box–Cox t distribution (BCT) model with the random effect Year | Farm emerges as the best-performing specification, slightly outperforming the ST2 model in terms of AIC (−128307 vs −128198).
+
+Residual Diagnostics and Shape Parameters:
+The most critical aspect of SCC modeling concerns the proper handling of kurtosis, which reflects the extreme tails of the distribution. The linear mixed models (Models 2 and 3) exhibit extremely high kurtosis values (34 and 37.86). This indicates that, despite attempting to fit the data, the linear model is completely overwhelmed by outliers (farms experiencing acute mastitis episodes or sudden SCC spikes). Under these conditions, the residuals cannot be considered statistically reliable.
+The BCT and ST2 models successfully reduce kurtosis values to approximately 3.2, which is close to the theoretical kurtosis of a normal distribution. This represents a remarkable improvement: the model effectively absorbs extreme SCC peaks, normalizing the residual distribution and allowing the estimated coefficients for sanitary variables (PT, AGAL, IBR) to remain statistically valid and robust to outliers.
+While the linear model exhibits pronounced negative skewness (−1.21, indicating a long left tail that pulls the mean downward), the BCT model reduces this value to −0.02, corresponding to an almost perfectly symmetric distribution.
+Finally, the Filliben correlation coefficient, equal to 0.9975, confirms an almost perfect linear relationship in the Q–Q plot and indicates a substantially better distributional fit compared to the linear models.
+
+Methodological Considerations (BCT vs ST2):
+For SCC data, the Box–Cox t (BCT) distribution appears to offer a slight methodological advantage over the ST2 distribution. The BCT model provides a slightly more efficient description of the data-generating process. The residual skewness is closer to zero compared to the ST2 model (−0.02 vs −0.13). Overall, the BCT distribution is particularly effective when the original data are strictly positive and exhibit an intrinsic power-transformation structure, a common characteristic of biological cell-count data such as SCC.
+
+```{r, results.6, echo = FALSE, warning = FALSE, fig.width = 12}
 ggplot_gamlss_diagnostics(
   gamlss_results$BCTYear.FarmSCC,
   summaries = FALSE, model = "BCTYear.Farm - SCC", save = FALSE
@@ -519,15 +593,72 @@ ggplot_gamlss_diagnostics(
   )
 ```
 
-```{r, results.6, echo = FALSE, warning = FALSE, fig.width = 12}
-extract_gamlss_fixed(gamlss_results$BCTYear.FarmSCC, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 1)
+Graphical diagnostics reveal that both the BCT and ST2 distributions exhibit minor issues in the left tail of the distribution. As previously observed in the histogram analysis, approximately 101 observations corresponding to absolute somatic cell counts of 2000 and 3000 are substantially distant from the central body of the distribution. This discontinuity creates difficulties for the model in accurately describing the left tail of the empirical distribution. However, the impact on the overall model performance is minimal. These observations represent only about 0.1% of the dataset, and their presence does not meaningfully alter the estimated model coefficients.
+The decision to retain these observations, despite the resulting imperfections in graphical diagnostics, was motivated by the desire to avoid artificially modifying the original dataset. Preserving the integrity of the observed data was considered preferable to obtaining perfectly smooth diagnostic plots.
 
+As a result, Model 7 (BCT with random slope Year | Farm) is identified as the gold standard specification for SCC analysis. This model provides robust estimates of sanitary risk factors while remaining resilient to the heavy tails present in the empirical distribution. Overall, the model remains optimal, as confirmed by the statistical properties of the residuals.
+
+```{r, results.7, echo = FALSE, warning = FALSE, fig.width = 12}
+extract_gamlss_fixed(gamlss_results$BCTYear.FarmSCC, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 1)
+```
+
+1. Analysis of the Mean Coefficients ($μ$)
+The parameter $μ$ models the central tendency of Log SCC. All health and seasonal coefficients are highly statistically significant.
+
+1.1 Health Drivers
+Unlike bacterial count, where the effect appeared explosive, SCC shows a more balanced yet highly consistent response.
+
+- Risk – AGAL (Low risk): coefficient −0.1016. The absence of Streptococcus agalactiae emerges as the main driver of SCC reduction. As a contagious udder pathogen, its control is directly proportional to bulk tank udder health.
+
+- Risk – IBR (Low risk): coefficient −0.0735. This effect is noteworthy, suggesting that the general immune status of the herd—linked to Infectious Bovine Rhinotracheitis—has a measurable influence on the mammary inflammatory response.
+
+- Risk – PT (Low risk): coefficient −0.0487. Paratuberculosis shows a smaller impact on SCC compared with total bacterial count (CBT), suggesting that this disease mainly affects general hygiene conditions rather than directly influencing mammary inflammation.
+
+1.2 Temporal and Seasonal Factors
+
+- Season: Summer (Season Summer) shows an increase of approximately +0.0361 log units. This reflects seasonal heat stress, which typically increases somatic cell counts. Winter and Spring show both reductions (approximately −0.03 log units), indicating environmental conditions more favorable to mammary immune stability.
+
+2. Analysis of Variability ($σ$) and Quality Stability
+The parameter $σ$ models dispersion (heteroscedasticity).
+
+Risk Control: Low and Medium PT risk significantly reduce $σ$ (up to −0.20 for Medium Risk). This indicates that farms actively monitoring paratuberculosis exhibit much more stable milk quality, with fewer unpredictable fluctuations in SCC.
+
+IBR Paradox: Low IBR risk slightly increases $σ$ (+0.04), suggesting a wider variability in immune response among disease-free or controlled herds.
+
+```{r, results.8, echo = FALSE, warning = FALSE, fig.width = 12}
 extract_random_variance(gamlss_results$BCTYear.FarmSCC)
 ```
 
-### Results
+4. Random Effects and Variance Decomposition
+The values extracted from the linear mixed-effects module provide the variance decomposition across farms.
 
-```{r, results.7, echo = FALSE, warning = FALSE, fig.width = 12}
+4.1 Intraclass Correlation Coefficient (ICC)
+The ICC quantifies how much of the total variance is structurally associated with farm identity.
+$$
+\sigma_{\text{Intercept}}^{2} = 0.1288^{2} \approx 0.0166
+$$
+$$
+\sigma_{\text{Residual}}^{2} = 1.0155^{2} \approx 1.0312
+$$
+$$
+ICC = \frac{\sigma_{\text{Intercept}}^{2}}
+{\sigma_{\text{Intercept}}^{2} + \sigma_{\text{Residual}}^{2}}
+= \frac{0.0166}{0.0166 + 1.0312}
+\approx 0.0158 \; (1.58\%)
+$$
+For SCC, farm identity (random intercept) explains a relatively small proportion of total variance compared with bacterial count models. This suggests that SCC is influenced by much more dynamic and time-varying factors (acute mastitis events, weather conditions) rather than by the structural farm characteristics that dominate CBT variability.
+
+4.2 Temporal Dynamics (Random Slope)
+The stabdard deviation for the Random Slope (0.0279) indicates significant variability in improvement trends across farms. A moderately strong negative correlation (−0.488) shows that farms that initially presented higher SCC levels (higher intercept) showed the most pronounced improvements over time (more negative slopes). This pattern provides clear evidence of effective management recovery among farms that were initially more problematic.
+
+Conclusions:
+The BCT model demonstrates that udder health (SCC) is a multifactorial process, where control of Streptococcus agalactiae and IBR plays a primary role. Although farm identity contributes less to SCC variability than to total bacterial count (ICC ≈ 1.6%), the strong negative correlation between initial status and temporal trend indicates that improvement efforts were effectively directed toward the most critical farms, resulting in a progressive convergence toward lower somatic cell levels.
+
+## **Overall results**
+
+For a more intuitive understanding of the model results, the following coefficient plot displays the $μ$ coefficients for both models.
+
+```{r, results.9, echo = FALSE, warning = FALSE, fig.width = 12}
 models <- list(
   "Skew t distribution type 2 Year|Farm for Log TBC" = gamlss_results$ST2Year.FarmCBT,
   "Skew t distribution type 2 Year|Farm for Log SCC" = gamlss_results$ST2Year.FarmSCC
@@ -536,7 +667,11 @@ models <- list(
 ggplot_coefficients(models, model = "Skew t distribution type 2 Year|Farm")
 ```
 
-### Model prediction cpacity
+## **Model Validation and Residual Analysis (Test Set)**
+
+The predictive performance of the moodels was evaluated using an independent dataset (30% of the total sample). The obtained metrics are reported and discussed below:
+
+### 4.1.1 Log TBC Model Validation
 
 ```{r, testing.1, echo = FALSE, warning = FALSE, fig.width = 12}
 set.seed(123)
@@ -594,34 +729,85 @@ validationCBT <- evaluate_gamlss_performance(gamlss_test_results$testmodCBTFarm,
 
 validationCBT$metrics
 
-summary(validationCBT$errors_data[, .(LogCBT, Farm = as.factor(Farm), Season, Year, RiskAGAL, RiskIBR, RiskPT)])
-mean(validationCBT$errors_data$pred - validationCBT$errors_data$LogCBT, na.rm = TRUE)
+validationCBT$errors_data[, .N, by = .(Season, RiskPT, RiskIBR)][order(N, decreasing = TRUE)]
+```
 
+The fact that the RMSE (0.435) is substantially larger than the MAE (0.304) indicates that the error distribution is not uniform. The model performs with high accuracy for the majority of observations but is strongly penalized by a relatively small fraction of large residuals (outliers).
+
+### 4.1.2 Analysis of Severe Errors (> 0.5 log)
+A targeted analysis was conducted on the 4,630 “severe errors”, defined as observations where the difference between predicted and observed values exceeds 0.5 logarithmic units. The mean error within this subgroup is −0.82, indicating a pronounced tendency to underestimate peaks in bacterial count (CBT).
+
+The analysis of the 32 combinations of risk factors associated with severe prediction errors (>0.5 log units) in the bacterial count model provides insight into the limits of its predictive capacity. A systematic examination of these patterns reveals three main dynamics related to the configuration of farm-level risk profiles.
+
+A. The “blind spot” of apparent low Biosecurity Risk:
+The largest error cluster (including the five most frequent combinations) involves farms classified as Low Risk for IBR but Medium or High Risk for PT (Paratuberculosis).
+In this configuration, IBR-free status acts as a misleading signal of stability. The model therefore predicts relatively contained bacterial counts, but the observed data frequently show strong positive deviations.
+A clear seasonal gradient is also observed: under the same PT risk level, severe errors almost double from winter (N = 268) to summer (N = 449). This pattern suggests that summer heat stress acts as a trigger for management vulnerabilities associated with paratuberculosis, generating bacterial count spikes that exceed the model’s predictive capacity.
+
+B. Stability of “clean” systems:
+Risk combinations characterized by Low Risk IBR and Low Risk PT show the lowest frequency of severe prediction errors (N = 150 in winter).
+This finding confirms that comprehensive biosecurity, involving simultaneous control of both PT and IBR, represents a fundamental prerequisite for achieving stable and predictable bacterial count levels. In the absence of chronic pathogens, bacterial count dynamics appear to respond more consistently to the environmental and seasonal factors captured by the model.
+
+C. The paradox of Overt Risk:
+A counterintuitive pattern emerges in farms characterized by high risk across multiple health dimensions (High IBR + High PT). In these cases, the frequency of severe prediction errors decreases substantially (N < 100).
+When sanitary impairment is clear and consistent, the risk signal received by the model becomes sufficiently strong that predicted bacterial counts correctly shift toward higher expected values. As a consequence, the model appears to be more challenged by farms with conflicting or ambiguous health signals—the so-called “gray zone” farms—than by farms with uniformly poor but coherent sanitary profiles.
+
+### 4.2.1 Log SCC Model Validation
+
+```{r, testing.2, echo = FALSE, warning = FALSE, fig.width = 12}
 validationSCC <- evaluate_gamlss_performance(gamlss_test_results$testmodSCCFarm, test_data = dt_test, train_data = dt_train, target_var = "LogSCC")
 
 validationSCC$metrics
 
-summary(validationSCC$errors_data[, .(LogSCC, Farm = as.factor(Farm), Season, Year, RiskAGAL, RiskIBR, RiskPT)])
-mean(validationSCC$errors_data$pred - validationSCC$errors_data$LogCBT, na.rm = TRUE)
+validationSCC$errors_data[, .N, by = .(Season, RiskPT, RiskIBR)][order(N, decreasing = TRUE)]
+```
 
+The model applied to somatic cell count shows substantially higher predictive accuracy compared with the bacterial count model. Validation metrics on the test set indicate a Mean Absolute Error (MAE) of 0.096 and a bias close to zero (0.004), suggesting that the model is well calibrated and capable of tracking the actual dynamics of the parameter without systematic distortion.
+
+### 4.2.2 Analysis of Severe Errors (> 0.5 log)
+
+The analysis of risk combinations for the SCC model confirms the statistical robustness already highlighted by the overall performance metrics (MAE = 0.096). Compared to the 4,630 severe errors observed in the bacterial count (CBT) model, the SCC model presents only 127 severe errors, almost exclusively concentrated in specific health risk profiles.
+
+A. Dominance of Paratuberculosis (PT) Risk:
+Unlike CBT, where uncertainty was spread across multiple seasons, SCC prediction errors are almost entirely driven by PT risk:
+The top five combinations (70 errors out of 127) all involve High Risk PT farms.
+In the SCC context, PT is not merely a "disturbing factor" but represents the main driver of immune instability that the model struggles to quantify accurately on a farm-by-farm basis.
+
+B. “Inverse” Seasonality:
+While CBT predictions fail most dramatically in summer, the SCC model shows its greatest fragility in autumn (positions 1 and 3). SCCs are less sensitive to acute heat stress and more responsive to management and humidity changes typical of autumn, which can trigger flare-ups of chronic mastitis in already compromised animals (High/Medium PT).
+
+3. The “safe haven” (Low Risk IBR + Low Risk PT):
+Interestingly, in fully low-risk farms (positions 6, 7, 8, 9), errors are almost nonexistent (only 4–6 cases per season). This observation provides conclusive evidence of the model's capacity to accurately predict mammary health in contexts of high biosecurity, confirming that in well-managed, low-risk farms, SCC levels remain highly stable and predictable.
+
+## **Generalized Predictive Capacity Analysis**
+
+The effectiveness of the developed models was evaluated not only through goodness-of-fit indices (AIC, BIC) but also via a rigorous assessment of the system's ability to generalize predictions to an "unknown farm". To this end, residual diagnostics were conducted on the fixed-effects-only model, isolating the impact of epidemiological and environmental drivers from farm-specific variability (Farm random effect).
+
+### 5.1.1 Log TBC Fixed-Effects Model Validation
+
+```{r, testing.3, echo = FALSE, warning = FALSE, fig.width = 12}
 validationCBTfixed <- evaluate_gamlss_performance(gamlss_test_results$testmodCBT, test_data = test_ignote, train_data = train_ignote, target_var = "LogCBT")
 
 validationCBTfixed$metrics
+```
 
-summary(validationCBTfixed$errors_data[, .(LogCBT, Season, Year, RiskAGAL, RiskIBR, RiskPT)])
-mean(validationCBTfixed$errors_data$pred - validationCBTfixed$errors_data$LogCBT, na.rm = TRUE)
+The model for Total Bacterial Count (LogCBT) exhibits a systematic underestimation tendency, with an overall BIAS of -0.47 and an RMSE of 0.62. However, an analysis of “severe” residuals (deviations greater than 0.5 log units) reveals a more complex pattern: the number of predictions with critical errors totals 11,422 observations. In these cases, the mean BIAS drops to -0.84, indicating that during peak events, the model fails to capture nearly a full order of magnitude of bacterial load.
+Overall, without incorporating the random effects, the model loses almost all predictive capacity, underestimating LogCBT by approximately 0.5 log units compared to the true values.
 
+### 5.1.2 Log SCC Fixed-Effects Model Validation
+
+The model for Somatic Cell Count (LogSCC) demonstrates exceptional robustness even without random effects. The error metrics confirm a high predictive accuracy:
+
+```{r, testing.4, echo = FALSE, warning = FALSE, fig.width = 12}
 validationSCCfixed <- evaluate_gamlss_performance(gamlss_test_results$testmodSCC, test_data = test_ignote, train_data = train_ignote, target_var = "LogSCC")
 
 validationSCCfixed$metrics
-
-summary(validationSCCfixed$errors_data[, .(LogSCC, Season, Year, RiskAGAL, RiskIBR, RiskPT)])
-mean(validationSCCfixed$errors_data$pred - validationSCCfixed$errors_data$LogCBT, na.rm = TRUE)
 ```
 
+These results suggest that the inflammatory status of the herd is directly and predictably governed by the sanitary risk factors (PT, IBR, Agalactiae). The average error in the rare severe cases (1.2 log units) is attributable to acute, unpredictable clinical events, but these do not compromise the model’s ability to capture the general epidemiological trend.
 
 ```{r, prediction.1, echo = FALSE, warning = FALSE, fig.width = 12}
-if (!file.exists("data/final models for prediction/test models.rds")) {
+if (!file.exists("data/final models for prediction/final models.rds")) {
   gamlss_final_models <- list(
     ST2Year.FarmCBT = gamlss(
       formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
@@ -638,186 +824,48 @@ if (!file.exists("data/final models for prediction/test models.rds")) {
     )
   )
 
-  saveRDS(gamlss_test_results, file = "data/final models for prediction/test models.rds")
+  saveRDS(gamlss_final_models, file = "data/final models for prediction/final models.rds")
 }
 ```
 
-### Restricted analysis
+## **Conclusions**
 
-```{r, preparation.2, echo = FALSE, warning = FALSE, fig.width = 12}
-threshold <- min(dt$`Log CBT`)
+The present study provides a comprehensive assessment of milk quality in terms of Total Bacterial Count (TBC) and Somatic Cell Count (SCC) using bulk tank milk samples collected between 2016 and 2020. The analysis combines descriptive statistics, graphical exploration, and advanced modeling techniques (linear models, linear mixed-effects models, and GAMLSS) to account for both fixed effects (season, herd health status) and random effects (farm identity, temporal dynamics).
 
-mu  <- mean(dt$`Log CBT` - threshold, na.rm = TRUE)
-var <- var(dt$`Log CBT` - threshold, na.rm = TRUE)
+### 6.1 Total Bacterial Count (TBC)
+Herd health status emerges as the primary determinant of bacterial load in milk.
+- Agalactiae (AGAL): Low-risk status corresponds to a substantial reduction in mean TBC (−0.2427 log units).
+- Paratuberculosis (PT): Low-risk farms exhibit lower average TBC (−0.1830 log units) and reduced variability, indicating more predictable microbiological quality.
+- IBR: Although statistically significant, its effect is smaller and directionally complex (+0.0121 log units), suggesting mediation by farm-level dynamics.
 
-shape <- (mu^2) / var
-rate <- mu / var
+Seasonal effects:
+- Summer is associated with increased mean TBC and higher dispersion (+0.0082 log for mean, +0.1891 log for $σ$), consistent with heat-facilitated bacterial growth and inflammation.
+- Winter and spring exhibit lower means and tighter distributions.
 
-x_seq <- seq(threshold, max(dt$`Log CBT`, na.rm = TRUE), length.out = 500)
-df_gamma <- data.frame(x = x_seq, y = dgamma(x_seq - threshold, shape = shape, rate = rate))
+Random effects and farm variability:
+Farm identity explains approximately 7.1% of total TBC variance (ICC ≈ 0.071), highlighting the role of farm-specific management, infrastructure, and hygiene protocols. Negative correlation between initial TBC levels and temporal slope indicates convergence across farms, reflecting effective corrective interventions in initially high-load herds.
 
-p1 <- ggplot(dt, aes(x = `Log CBT`)) +
-  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
-  geom_line(data = df_gamma, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
-  labs(title = "Observed distribution vs. Shifted Gamma distribution",
-       x = "Log CBT",
-       y = "Density") +
-  theme_minimal(base_size = 12) +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-    axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-    panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-    panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-  )
+Model performance and validation:
+The ST2 GAMLSS model with random intercepts for farm and random slopes for year provides the best fit, effectively capturing skewness, kurtosis, and extreme observations. Test set evaluation reveals that the model performs well for the majority of observations but tends to underestimate peak bacterial loads, particularly in farms with mixed risk profiles (low IBR, medium/high PT), and during summer heat stress.
+Fixed-effects-only models substantially underestimate TBC (BIAS ≈ −0.84 log), confirming the critical importance of accounting for farm-level variability.
 
-threshold <- min(dt$`Log SCC`)
+### 6.2 Somatic Cell Count (SCC)
+Herd health factors remain key predictors of mammary inflammation.
+- AGAL (Low risk): strongest reduction in SCC (−0.1016 log units).
+- IBR (Low risk): measurable effect on SCC (−0.0735 log units), reflecting herd immune status.
+- PT (Low risk): smaller but significant effect (−0.0487 log units).
 
-mu  <- mean(dt$`Log SCC` - threshold, na.rm = TRUE)
-var <- var(dt$`Log SCC` - threshold, na.rm = TRUE)
+Seasonal and temporal dynamics:
+- Summer: moderate increase in SCC (+0.0361 log units), reflecting heat stress.
+- Winter and spring: reductions (~−0.03 log units), indicating favorable environmental conditions.
 
-shape <- (mu^2) / var
-rate <- mu / var
+Random effects and farm variability:
+Farm identity contributes marginally to total SCC variance (ICC ≈ 1.6%), suggesting that SCC is primarily influenced by dynamic, time-varying factors such as acute mastitis episodes or seasonal conditions. Strong negative correlation between initial SCC levels and temporal slope confirms that farms with initially higher SCC exhibit greater improvements over time, indicating targeted management effectiveness.
 
-x_seq <- seq(threshold, max(dt$`Log SCC`, na.rm = TRUE), length.out = 500)
-df_gamma <- data.frame(x = x_seq, y = dgamma(x_seq - threshold, shape = shape, rate = rate))
+Model performance and validation:
+BCT GAMLSS with random slope Year|Farm provides the most robust specification, handling heavy tails and extreme values efficiently.
+Test set evaluation demonstrates high predictive accuracy (MAE = 0.096; bias ≈ 0), with severe errors (>0.5 log) limited to 127 observations, predominantly associated with high PT risk farms. Fixed-effects-only models remain largely accurate, confirming that SCC is strongly governed by sanitary risk factors and less dependent on farm-specific effects.
 
-p2 <- ggplot(dt, aes(x = `Log SCC`)) +
-  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
-  geom_line(data = df_gamma, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
-  labs(title = "Observed distribution vs. Shifted Gamma distribution",
-       x = "Log SCC",
-       y = "Density") +
-  theme_minimal(base_size = 12) +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-    axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-    panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-    panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-  )
-
-wrap_plots(c(p1, p2), ncol = 2)
-```
-
-### Models
-
-```{r, analysis.2, echo = FALSE, warning = FALSE, fig.width = 12}
-if (!file.exists("data/results/glm models restricted.rds")) {
-  glm_restricted <- list(
-    GammaCBT = glm(LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT, family = Gamma(link = "identity"), data = dt_restricted),
-
-    GammaSCC = glm(LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT, family = Gamma(link = "identity"), data = dt_restricted)
-  )
-  
-  saveRDS(glm_restricted, file = "data/results/glm models restricted.rds")
-}
-
-if (!file.exists("data/results/mixed models restricted.rds")) {
-  mixed_models_restricted <- list(
-    GammaMixedFarmCBT = glmer(formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), family = Gamma(link = "identity"), data = dt_restricted),
-
-    GammaMixedYear.FarmCBT = glmer(formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (YearNum|Farm), family = Gamma(link = "identity"), data = dt_restricted),
-
-    GammaMixedFarmSCC = glmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), family = Gamma(link = "identity"), data = dt_restricted),
-
-    GammaMixedYear.FarmSCC = glmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (YearNum|Farm), Gamma(link = "identity"), data = dt_restricted)
-  )
-
-  saveRDS(mixed_models_restricted, file = "data/results/mixed models restricted.rds")
-}
-
-if (!file.exists("data/results/gamlss models restricted.rds")) {
-  plan(multisession, workers = parallel::detectCores() - 1)
-
-  gamlss_restricted <- future_lapply(
-    X = models_gamlss_restricted,
-    FUN = function(mod) {
-      run_model_safely(
-        spec = mod,            # model
-        data = datasets,       # data
-        optimizer = "optim"    # optimizer
-      )
-    },
-    future.packages = c("gamlss", "nlme"),
-    future.seed = TRUE,
-    future.globals = list(datasets = datasets, run_model_safely = run_model_safely)
-  )
-
-  saveRDS(gamlss_restricted, file = "data/results/gamlss models restricted.rds")
-}
-
-glm_restricted <- readRDS(file = "data/results/glm models restricted.rds")
-mixed_models_restricted <- readRDS(file = "data/results/mixed models restricted.rds")
-gamlss_restricted <- readRDS(file = "data/results/gamlss models restricted.rds")
-```
-
-### Results
-
-```{r, results.8, echo = FALSE, warning = FALSE, fig.width = 12}
-objects_restricted_CBT <- list(
-  "Gamma Model" = glm_restricted$GammaCBT,
-  "Gamma Mixed Model 1|Farm" = mixed_models_restricted$GammaMixedFarmCBT,
-  "Gamma Mixed Model Year|Farm" = mixed_models_restricted$GammaMixedYear.FarmCBT,
-  "GAMLSS Gamma Model 1|Farm" = gamlss_restricted$GammaFarmCBT,
-  "GAMLSS Gamma Model Year|Farm" = gamlss_restricted$GammaYear.FarmCBT,
-  "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaFarmCBT,
-  "GAMLSS Generalized Gamma Model Year|Farm" = gamlss_restricted$GeneralizedGammaYear.FarmCBT,
-  "GAMLSS Exponential Gaussian 1|Farm" = gamlss_restricted$ExGaussFarmCBT,
-  "GAMLSS Exponential Gaussian Year|Farm" = gamlss_restricted$ExGaussYear.FarmCBT
-  )
-
-model_selection_criteria(objects_restricted_CBT)
-```
-
-```{r, results.9, echo = FALSE, warning = FALSE, fig.width = 12}
-extract_gamlss_fixed(gamlss_restricted$GeneralizedGammaFarmCBT, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 0)
-
-extract_random_variance(gamlss_restricted$GeneralizedGammaFarmCBT)
-```
-
-```{r, results.10, echo = FALSE, warning = FALSE, fig.width = 12}
-ggplot_gamlss_diagnostics(
-  gamlss_restricted$GeneralizedGammaFarmCBT,
-  summaries = FALSE, model = "GeneralizedGammaYear.Farm - CBT", save = FALSE
-  )
-```
-
-```{r, results.11, echo = FALSE, warning = FALSE, fig.width = 12}
-objects_restricted_SCC <- list(
-  "Gamma Model" = glm_restricted$GammaSCC,
-  "Gamma Mixed Model 1|Farm" = mixed_models_restricted$GammaMixedFarmSCC,
-  "Gamma Mixed Model Year|Farm" = mixed_models_restricted$GammaMixedYear.FarmSCC,
-  "GAMLSS Gamma Model 1|Farm" = gamlss_restricted$GammaFarmSCC,
-  "GAMLSS Gamma Model Year|Farm" = gamlss_restricted$GammaYear.FarmSCC,
-  "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaFarmSCC,
-  "GAMLSS Generalized Gamma Model Year|Farm" = gamlss_restricted$GeneralizedGammaYear.FarmSCC,
-  "GAMLSS Exponential Gaussian 1|Farm" = gamlss_restricted$ExGaussFarmSCC,
-  "GAMLSS Exponential Gaussian Year|Farm" = gamlss_restricted$ExGaussYear.FarmSCC
-)
-
-model_selection_criteria(objects_restricted_SCC)
-```
-
-```{r, results.12, echo = FALSE, warning = FALSE, fig.width = 12}
-extract_gamlss_fixed(gamlss_restricted$GeneralizedGammaYear.FarmSCC, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 0)
-
-extract_random_variance(gamlss_restricted$GeneralizedGammaYear.FarmSCC)
-```
-
-```{r, results.13, echo = FALSE, warning = FALSE, fig.width = 12}
-ggplot_gamlss_diagnostics(
-  gamlss_restricted$GeneralizedGammaYear.FarmSCC,
-  summaries = FALSE, model = "GeneralizedGammaYear.Farm - SCC", save = FALSE
-  )
-```
-
-```{r, results.14, echo = FALSE, warning = FALSE, fig.width = 12}
-models <- list(
-  "Generalized Gamma Year|Farm for Log CBT" = gamlss_restricted$GeneralizedGammaFarmCBT,
-  "Generalized Gamma Year|Farm for Log SCC" = gamlss_restricted$GeneralizedGammaYear.FarmSCC
-  )
-
-ggplot_coefficients(models, model = "Generalized Gamma Year|Farm")
-```
-
+### 6.3 General Conclusions
+Despite these statistically significant findings, the magnitude of observed differences in both TBC and SCC is small, indicating that the detected effects lack biological significance. Under typical dairy production conditions, the variations associated with herd health risk factors and seasonal effects are unlikely to produce meaningful impacts on milk safety, technological properties, or udder health outcomes.
+In summary, this study demonstrates that milk quality is shaped by herd health, seasonal influences, and farm-specific variability. Advanced mixed-effects GAMLSS models allow for accurate statistical characterization and prediction of these parameters. However, the small effect sizes suggest that, while the models are useful for understanding patterns and identifying risk drivers, the practical biological impact of these variations is limited, highlighting the importance of interpreting statistical results within a real-world dairy production context.

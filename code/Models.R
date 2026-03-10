@@ -2,7 +2,7 @@
 # GAMLSS models configuration (CBT & SCC)
 models_gamlss <- list(
   LINFarmCBT = list(
-    formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogCBT ~ Month + Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
     sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
     family = NO(mu.link = "identity", sigma.link = "log"), data = "dt_analysis"
   ),

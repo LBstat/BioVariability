@@ -1,0 +1,185 @@
+---
+title: "Untitled"
+author: "Luca Bernardi"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+### Restricted analysis
+
+```{r, preparation.2, echo = FALSE, warning = FALSE, fig.width = 12}
+threshold <- min(dt$`Log CBT`)
+
+mu  <- mean(dt$`Log CBT` - threshold, na.rm = TRUE)
+var <- var(dt$`Log CBT` - threshold, na.rm = TRUE)
+
+shape <- (mu^2) / var
+rate <- mu / var
+
+x_seq <- seq(threshold, max(dt$`Log CBT`, na.rm = TRUE), length.out = 500)
+df_gamma <- data.frame(x = x_seq, y = dgamma(x_seq - threshold, shape = shape, rate = rate))
+
+p1 <- ggplot(dt, aes(x = `Log CBT`)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
+  geom_line(data = df_gamma, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
+  labs(title = "Observed distribution vs. Shifted Gamma distribution",
+       x = "Log CBT",
+       y = "Density") +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+    axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+    panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+    panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+  )
+
+threshold <- min(dt$`Log SCC`)
+
+mu  <- mean(dt$`Log SCC` - threshold, na.rm = TRUE)
+var <- var(dt$`Log SCC` - threshold, na.rm = TRUE)
+
+shape <- (mu^2) / var
+rate <- mu / var
+
+x_seq <- seq(threshold, max(dt$`Log SCC`, na.rm = TRUE), length.out = 500)
+df_gamma <- data.frame(x = x_seq, y = dgamma(x_seq - threshold, shape = shape, rate = rate))
+
+p2 <- ggplot(dt, aes(x = `Log SCC`)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
+  geom_line(data = df_gamma, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
+  labs(title = "Observed distribution vs. Shifted Gamma distribution",
+       x = "Log SCC",
+       y = "Density") +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
+    axis.title = element_text(size = 12), axis.text = element_text(size = 10),
+    panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+    panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+  )
+
+wrap_plots(c(p1, p2), ncol = 2)
+```
+
+### Models
+
+```{r, analysis.2, echo = FALSE, warning = FALSE, fig.width = 12}
+if (!file.exists("data/results/glm models restricted.rds")) {
+  glm_restricted <- list(
+    GammaCBT = glm(LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT, family = Gamma(link = "identity"), data = dt_restricted),
+
+    GammaSCC = glm(LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT, family = Gamma(link = "identity"), data = dt_restricted)
+  )
+  
+  saveRDS(glm_restricted, file = "data/results/glm models restricted.rds")
+}
+
+if (!file.exists("data/results/mixed models restricted.rds")) {
+  mixed_models_restricted <- list(
+    GammaMixedFarmCBT = glmer(formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), family = Gamma(link = "identity"), data = dt_restricted),
+
+    GammaMixedYear.FarmCBT = glmer(formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (YearNum|Farm), family = Gamma(link = "identity"), data = dt_restricted),
+
+    GammaMixedFarmSCC = glmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), family = Gamma(link = "identity"), data = dt_restricted),
+
+    GammaMixedYear.FarmSCC = glmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (YearNum|Farm), Gamma(link = "identity"), data = dt_restricted)
+  )
+
+  saveRDS(mixed_models_restricted, file = "data/results/mixed models restricted.rds")
+}
+
+if (!file.exists("data/results/gamlss models restricted.rds")) {
+  plan(multisession, workers = parallel::detectCores() - 1)
+
+  gamlss_restricted <- future_lapply(
+    X = models_gamlss_restricted,
+    FUN = function(mod) {
+      run_model_safely(
+        spec = mod,            # model
+        data = datasets,       # data
+        optimizer = "optim"    # optimizer
+      )
+    },
+    future.packages = c("gamlss", "nlme"),
+    future.seed = TRUE,
+    future.globals = list(datasets = datasets, run_model_safely = run_model_safely)
+  )
+
+  saveRDS(gamlss_restricted, file = "data/results/gamlss models restricted.rds")
+}
+
+glm_restricted <- readRDS(file = "data/results/glm models restricted.rds")
+mixed_models_restricted <- readRDS(file = "data/results/mixed models restricted.rds")
+gamlss_restricted <- readRDS(file = "data/results/gamlss models restricted.rds")
+```
+
+### Results
+
+```{r, results.8, echo = FALSE, warning = FALSE, fig.width = 12}
+objects_restricted_CBT <- list(
+  "Gamma Model" = glm_restricted$GammaCBT,
+  "Gamma Mixed Model 1|Farm" = mixed_models_restricted$GammaMixedFarmCBT,
+  "Gamma Mixed Model Year|Farm" = mixed_models_restricted$GammaMixedYear.FarmCBT,
+  "GAMLSS Gamma Model 1|Farm" = gamlss_restricted$GammaFarmCBT,
+  "GAMLSS Gamma Model Year|Farm" = gamlss_restricted$GammaYear.FarmCBT,
+  "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaFarmCBT,
+  "GAMLSS Generalized Gamma Model Year|Farm" = gamlss_restricted$GeneralizedGammaYear.FarmCBT,
+  "GAMLSS Exponential Gaussian 1|Farm" = gamlss_restricted$ExGaussFarmCBT,
+  "GAMLSS Exponential Gaussian Year|Farm" = gamlss_restricted$ExGaussYear.FarmCBT
+  )
+
+model_selection_criteria(objects_restricted_CBT)
+```
+
+```{r, results.9, echo = FALSE, warning = FALSE, fig.width = 12}
+extract_gamlss_fixed(gamlss_restricted$GeneralizedGammaFarmCBT, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 0)
+
+extract_random_variance(gamlss_restricted$GeneralizedGammaFarmCBT)
+```
+
+```{r, results.10, echo = FALSE, warning = FALSE, fig.width = 12}
+ggplot_gamlss_diagnostics(
+  gamlss_restricted$GeneralizedGammaFarmCBT,
+  summaries = FALSE, model = "GeneralizedGammaYear.Farm - CBT", save = FALSE
+  )
+```
+
+```{r, results.11, echo = FALSE, warning = FALSE, fig.width = 12}
+objects_restricted_SCC <- list(
+  "Gamma Model" = glm_restricted$GammaSCC,
+  "Gamma Mixed Model 1|Farm" = mixed_models_restricted$GammaMixedFarmSCC,
+  "Gamma Mixed Model Year|Farm" = mixed_models_restricted$GammaMixedYear.FarmSCC,
+  "GAMLSS Gamma Model 1|Farm" = gamlss_restricted$GammaFarmSCC,
+  "GAMLSS Gamma Model Year|Farm" = gamlss_restricted$GammaYear.FarmSCC,
+  "GAMLSS Generalized Gamma Model 1|Farm" = gamlss_restricted$GeneralizedGammaFarmSCC,
+  "GAMLSS Generalized Gamma Model Year|Farm" = gamlss_restricted$GeneralizedGammaYear.FarmSCC,
+  "GAMLSS Exponential Gaussian 1|Farm" = gamlss_restricted$ExGaussFarmSCC,
+  "GAMLSS Exponential Gaussian Year|Farm" = gamlss_restricted$ExGaussYear.FarmSCC
+)
+
+model_selection_criteria(objects_restricted_SCC)
+```
+
+```{r, results.12, echo = FALSE, warning = FALSE, fig.width = 12}
+extract_gamlss_fixed(gamlss_restricted$GeneralizedGammaYear.FarmSCC, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 0)
+
+extract_random_variance(gamlss_restricted$GeneralizedGammaYear.FarmSCC)
+```
+
+```{r, results.13, echo = FALSE, warning = FALSE, fig.width = 12}
+ggplot_gamlss_diagnostics(
+  gamlss_restricted$GeneralizedGammaYear.FarmSCC,
+  summaries = FALSE, model = "GeneralizedGammaYear.Farm - SCC", save = FALSE
+  )
+```
+
+```{r, results.14, echo = FALSE, warning = FALSE, fig.width = 12}
+models <- list(
+  "Generalized Gamma Year|Farm for Log CBT" = gamlss_restricted$GeneralizedGammaFarmCBT,
+  "Generalized Gamma Year|Farm for Log SCC" = gamlss_restricted$GeneralizedGammaYear.FarmSCC
+  )
+
+ggplot_coefficients(models, model = "Generalized Gamma Year|Farm")
+```

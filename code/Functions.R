@@ -38,7 +38,7 @@ run_model_safely <- function(spec, data, optimizer = "nlimnb") {
         family = spec$family, 
         data = current_data,
         method = RS(),
-        control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30)
+        control = gamlss.control(trace = FALSE)
       )
     }, error = function(e) {
       return(list(status = "error", message = e$message, spec = spec))
@@ -51,7 +51,7 @@ run_model_safely <- function(spec, data, optimizer = "nlimnb") {
         family = spec$family, 
         data = current_data,
         method = RS(),
-        control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30),
+        control = gamlss.control(trace = FALSE),
         c.control = lmeControl(opt = "optim", maxIter = 50, msMaxIter = 50)
       )
     }, error = function(e) {
@@ -273,10 +273,9 @@ evaluate_gamlss_performance <- function(model, test_data, train_data, target_var
 
   # 2. Error computations
   actual <- test_data[[target_var]]
-  absolute_residuals <- abs(actual - preds)
+  absolute_residuals <- abs(preds - actual)
 
   MAE  <- mean(absolute_residuals, na.rm = TRUE)
-  MSE <- mean((actual - preds)^2, na.rm = TRUE)
   RMSE <- sqrt(mean((actual - preds)^2, na.rm = TRUE))
 
   BIAS <- mean(preds - actual, na.rm = TRUE) 
@@ -290,7 +289,7 @@ evaluate_gamlss_performance <- function(model, test_data, train_data, target_var
 
   # 4. Output
   result <- list(
-    metrics = data.table(MAE = MAE, MSE = MSE, RMSE = RMSE, BIAS = BIAS, N_Errors = nrow(errors_df)),
+    metrics = data.table(MAE = MAE, RMSE = RMSE, BIAS = BIAS, N_Errors = nrow(errors_df)),
     errors_data = errors_df,
     predictions = preds
   )
