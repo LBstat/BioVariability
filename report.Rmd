@@ -357,9 +357,28 @@ This specification allows the model to capture both fixed effects associated wit
 
 ```{r, analysis.1, echo = FALSE, warning = FALSE, fig.width = 12}
 mod0 <- lm(LogCBT ~ Season + Year + LogSCC + RiskIBR + RiskAGAL + RiskPT, data = dt_analysis)
+mod1 <- lm(LogCBT ~ Season + YearNum + LogSCC + RiskIBR + RiskAGAL + RiskPT, data = dt_analysis)
+mod2 <- lm(LogCBT ~ Season + poly(YearNum, 2) + LogSCC + RiskIBR + RiskAGAL + RiskPT, data = dt_analysis)
+mod3 <- lm(LogCBT ~ (Season + Year + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2, data = dt_analysis)
+mod4 <- lm(LogCBT ~ (Season + YearNum + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2, data = dt_analysis)
+mod5 <- lm(LogCBT ~ (Season + poly(YearNum, 2) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2, data = dt_analysis)
+
+models <- list(
+  "Model with additive terms (categorical Year)" = mod0,
+  "Model with additive terms (numerical Year)" = mod1,
+  "Model with additive terms (polynomial Year)" = mod2,
+  "Model with multiplicative terms (categorical Year)" = mod3,
+  "Model with multiplicative termes (numerical Year)" = mod4,
+  "Model with multiplicative terms (polynomial Year)" = mod5
+  )
+
+dt <- rbindlist(lapply(models, function(x) {
+  data.table(Models = NA_character_, AIC = AIC(x), BIC = BIC(x))
+}))
+
+dt$Models <- names(models)
+dt[]
 ```
-
-
 
 ```{r, analysis.2, echo = FALSE, warning = FALSE, fig.width = 12}
 if (!file.exists("data/results/glm models.rds")) {
@@ -642,7 +661,7 @@ For a more intuitive understanding of the model results, the following coefficie
 models <- list(
   "Skew t distribution type 2 Year|Farm for Log TBC" = gamlss_results$ST2Year.FarmCBT,
   "Skew t distribution type 2 Year|Farm for Log SCC" = gamlss_results$ST2Year.FarmSCC
-)
+  )
 
 ggplot_coefficients(models, model = "Skew t distribution type 2 Year|Farm")
 ```

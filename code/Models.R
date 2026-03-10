@@ -2,74 +2,74 @@
 # GAMLSS models configuration (CBT & SCC)
 models_gamlss <- list(
   LINFarmCBT = list(
-    formula = LogCBT ~ Month + Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogCBT ~ (Season + pb(YearNum) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
+    sigma = ~ (Season + pb(YearNum) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
     family = NO(mu.link = "identity", sigma.link = "log"), data = "dt_analysis"
   ),
 
   LINFarmSCC = list(
-    formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogSCC ~ (Season + pb(YearNum) + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
+    sigma = ~ (Season + pb(YearNum) + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
     family = NO(mu.link = "identity", sigma.link = "log"), data = "dt_analysis"
   ),
 
   LINYear.FarmCBT = list(
-    formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogCBT ~ (Season + pb(YearNum) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ YearNum|Farm),
+    sigma = ~ (Season + pb(YearNum) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
     family = NO(mu.link = "identity", sigma.link = "log"), data = "dt_analysis"
   ),
 
   LINYear.FarmSCC = list(
-    formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogSCC ~ (Season + pb(YearNum) + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ YearNum|Farm),
+    sigma = ~ (Season + pb(YearNum) + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
     family = NO(mu.link = "identity", sigma.link = "log"), data = "dt_analysis"
   ),
 
   BCTFarmCBT = list(
-    formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogCBT ~ (Season + pb(YearNum) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
+    sigma = ~ (Season + pb(YearNum) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
     family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "dt_analysis"
   ),
 
   BCTFarmSCC = list(
-    formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogSCC ~ (Season + pb(YearNum) + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
+    sigma = ~ (Season + pb(YearNum) + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
     family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "dt_analysis"
   ),
 
   BCTYear.FarmCBT = list(
-    formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogCBT ~ (Season + pb(YearNum) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ YearNum|Farm),
+    sigma = ~ (Season + pb(YearNum) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
     family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "dt_analysis"
     ),
 
   BCTYear.FarmSCC = list(
-    formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogSCC ~ (Season + pb(YearNum) + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ YearNum|Farm),
+    sigma = ~ (Season + pb(YearNum) + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
     family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "dt_analysis"
   ),
 
   ST2FarmCBT = list(
-    formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogCBT ~ (Season + pb(YearNum) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
+    sigma = ~ (Season + pb(YearNum) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
     family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "dt_analysis"
   ),
 
   ST2FarmSCC = list(
-    formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogSCC ~ (Season + pb(YearNum) + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
+    sigma = ~ (Season + pb(YearNum) + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
     family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "dt_analysis"
   ),
 
   ST2Year.FarmCBT = list(
-    formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogCBT ~ (Season + pb(YearNum) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ YearNum|Farm),
+    sigma = ~ (Season + pb(YearNum) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
     family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "dt_analysis"
   ),
 
   ST2Year.FarmSCC = list(
-    formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
-    sigma = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
+    formula = LogSCC ~ (Season + pb(YearNum) + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ YearNum|Farm),
+    sigma = ~ (Season + pb(YearNum) + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2 + re(random = ~ 1|Farm),
     family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"), data = "dt_analysis"
   )
 )
