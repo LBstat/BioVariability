@@ -109,7 +109,7 @@ model_selection_criteria <- function(obj) {
       } else if (inherits(x, "lmerMod") || inherits(x, "lm")) {
         # Pearson/Standardized residuals already randomized quantile residuals
         as.numeric(residuals(x, type = "pearson"))
-        
+
       } else {
         # Fallback --> other possible GLMs
         sim <- simulateResiduals(x, n = 250)
@@ -118,7 +118,7 @@ model_selection_criteria <- function(obj) {
     }, error = function(e) { 
       return(NULL)
     })
-    
+
     # Protezione se i residui sono incalcolabili o assenti
     if (is.null(clean_res) || all(is.na(clean_res))) {
       return(data.table(
@@ -172,52 +172,58 @@ model_selection_criteria <- function(obj) {
   dt_final <- rbindlist(res_list, fill = TRUE)
   dt_final$Model <- names(obj_processed)
 
-  return(dt_final)
+  dt_final[]
 }
 
 extract_gamlss_fixed <- function(model, n_mu, n_sigma, n_nu, n_tau) {
 
-  # Assertions
   assertClass(model, classes = "gamlss")
+  assertNumber(n_mu)
+  assertNumber(n_sigma)
+  assertNumber(n_nu)
+  assertNumber(n_tau)
 
   # Summary extraction
   invisible(capture.output(summ_mat <- summary(model)))
-  df_raw <- as.data.frame(as.matrix(summ_mat))
+  dt <- as.data.table(as.data.frame(summ_mat), keep.rownames = "RawTerm")
 
-  df_clean <- data.frame(
-    Estimate = round(as.numeric(as.character(df_raw[[1]])), 4),
-    Std_Error = round(as.numeric(as.character(df_raw[[2]])), 4),
-    t_value = round(as.numeric(as.character(df_raw[[3]])), 4),
-    p_value = as.numeric(as.character(df_raw[[4]]))
-  )
-
-  # String manipulation
-  raw_names <- rownames(df_raw)
-  clean_names <- gsub("X\\.[[:alpha:]]*\\.", "Baseline Log", raw_names)
-  clean_names <- gsub("\\.", " ", clean_names)
-
-  clean_names <- vapply(clean_names, function(x) {
-    strsplit(x, split = " ")[[1]][[1]]
-  }, character(1))
-
-  df_clean$Variable <- clean_names
-
-  # Checks
   total_rows_expected <- n_mu + n_sigma + n_nu + n_tau
-  if (nrow(df_clean) != total_rows_expected) {
-    stop(paste("Model has", nrow(df_clean), "rows, but input has", total_rows_expected))
+  if (nrow(dt) != total_rows_expected) {
+    stop(paste("Model has", nrow(dt), "rows, but input has", total_rows_expected))
   }
 
-  df_clean$Parameter <- c(rep("mu", n_mu), rep("sigma", n_sigma), rep("nu", n_nu), rep("tau", n_tau))
+  dt[, Parameter := c(rep("mu", n_mu), rep("sigma", n_sigma), rep("nu", n_nu), rep("tau", n_tau))]
 
-  df_clean$Signif <- cut(df_clean$p_value, breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), labels = c("***", "**", "*", ".", " "))
-  df_clean$p_value <- round(df_clean$p_value, 4)
+  setnames(dt, c("Term", "Estimate", "StdError", "t value", "p_value", "Parameter"))
 
-  df_clean <- df_clean[, c("Parameter", "Variable", "Estimate", "Std_Error", "p_value", "Signif")]
-  colnames(df_clean) <- c("Parameter", "Variable", "Estimate", "Std Error", "Pr(>|t|)", "Signif")
+  dt[, Variable := Term][, Variable := gsub("X\\.[[:alpha:]]*\\.", "Baseline Log", Variable)]
 
-  rownames(df_clean) <- NULL
-  return(df_clean)
+  dt[, Variable := gsub("Low", " Low", Variable)]
+  dt[, Variable := gsub("Medium", " Medium", Variable)]
+  dt[, Variable := gsub("Spring", " Spring", Variable)]
+  dt[, Variable := gsub("Summer", " Summer", Variable)]
+  dt[, Variable := gsub("Winter", " Winter", Variable)]
+
+  dt[, Variable := gsub("Risk", "", Variable)]
+  dt[, Variable := trimws(Variable)]
+
+  dt[, Variable := gsub("IBR ", "IBR: ", Variable)]
+  dt[, Variable := gsub("AGAL ", "AGAL: ", Variable)]
+  dt[, Variable := gsub("PT ", "PT: ", Variable)]
+
+  dt[, Variable := gsub("\\.", " ", Variable)][, Variable := gsub("\\s[0-9]$", " ", Variable)]
+
+  # 4. Significance
+  dt[, Signif := cut(p_value, breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), labels = c("***", "**", "*", ".", " "))]
+
+  # Arrotondamenti finali
+  dt[, `:=`(
+    Estimate = round(Estimate, 4),
+    `Std Error` = round(StdError, 4),
+    `Pr(>|t|)` = round(p_value, 4)
+  )]
+
+  dt[, .(Parameter, Variable, Estimate, `Std Error`, `Pr(>|t|)`, Signif)][]
 }
 
 extract_random_variance <- function(model) {
@@ -229,28 +235,22 @@ extract_random_variance <- function(model) {
   smo <- getSmo(model)
   var_corr <- VarCorr(smo)
 
-  df_random <- data.frame(
+  dt <- data.table(
     Group = rownames(var_corr),
     Variance = round(as.numeric(var_corr[, "Variance"]), 4),
     StdDev = round(as.numeric(var_corr[, "StdDev"]), 4),
     Correlation = if("Corr" %in% colnames(var_corr)) round(as.numeric(var_corr[, "Corr"]), 4) else NA
   )
 
-  # String manipulation
-  df_random$Group <- gsub("(Intercept)", "Farm (Random Intercept)", df_random$Group)
-  df_random$Group <- gsub("YearNum", "Year (Random Slope)", df_random$Group)
-  df_random$Group <- gsub("Residual", "Residual variance", df_random$Group)
+  dt[, Group := gsub("\\(Intercept\\)", "Farm (Random Intercept)", Group)]
+  dt[, Group := gsub("YearNum", "Year (Random Slope)", Group)]
+  dt[, Group := gsub("Residual", "Residual variance", Group)]
 
-  df_random$Correlation <- as.character(df_random$Correlation)
-  df_random$Correlation[is.na(df_random$Correlation)] <- "-"
+  dt[, Correlation := as.character(Correlation)]
+  dt[is.na(Correlation) | Correlation == "NA", Correlation := "-"]
 
-  rownames(df_random) <- NULL
-
-  return(df_random)
+  dt[]
 }
-
-# Esempio:
-# tab_random <- extract_random_variance(gamlss_results$ST2Year.FarmCBT)
 
 evaluate_gamlss_performance <- function(model, test_data, train_data, target_var, threshold = 0.5) {
 

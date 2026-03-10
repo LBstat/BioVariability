@@ -56,9 +56,7 @@ From the original dataset containing 89,993 records, missing data were removed. 
 
 - RiskPT (herd risk level for PT)
 
-To highlight temporal and seasonal patterns, data were aggregated by year and season, and by year and month, calculating the mean of logarithmic bacterial and somatic cell counts for each group. Graphical analysis clearly shows that, across years, seasonal patterns have a marginal impact on the mean logarithmic values. Summer exhibits higher mean log TBC and SCC values compared to other seasons, while winter shows the lowest values.
-
-Overall, these observations are consistent with the effect of increased temperatures, which can facilitate inflammation or bacterial growth and spread. Monthly pattern analysis confirms the trends observed in seasonal patterns across years and supports the conclusion that seasons are unbiased predictors of temporal variations in LogTBC and LogSCC.
+To highlight temporal and seasonal patterns, data were aggregated by year and season, and by year and month, calculating the mean of logarithmic bacterial and somatic cell counts for each group. Graphical analysis clearly shows that, across years, seasonal patterns have a marginal impact on the mean logarithmic values. Summer exhibits higher mean log TBC and SCC values compared to other seasons, while winter shows the lowest values. Moreover, clear cross-over interaction phenomena can be observed.Since the seasonal trend lines do not maintain a parallel course across years or between different risk levels, it can be inferred that the effect of seasonality on TBC and SCC is conditioned by temporal and herd health factors. This evidence violates the additivity assumption of simple models, making the inclusion of interaction terms necessary to avoid estimation errors (bias).
 
 ```{r, exploration.1, echo = FALSE, warning = FALSE, fig.width = 12}
 source("settings.R")
@@ -67,9 +65,7 @@ source("source_all.R")
 data <- read_excel("data/raw/Latte.xlsx")
 setDT(data)
 
-data <- data |>
-  select(Farm, Month, Season, Year, `Log CBT`, `Log SCC`, `Risk - IBR`, `Risk - AGAL`, `Risk - PT`)
-
+data <- data[, .(Farm, Month, Season, Year, `Log CBT`, `Log SCC`, `Risk - IBR`, `Risk - AGAL`, `Risk - PT`)]
 colnames(data) <- c("Farm", "Month", "Season", "Year", "LogCBT", "LogSCC", "RiskIBR", "RiskAGAL", "RiskPT")
 
 miss_var_summary(data)
@@ -77,112 +73,104 @@ dt_analysis <- na.omit(data)
 
 missing_values_percent <- 1 - nrow(dt_analysis) / nrow(data)
 
-dt_analysis$RiskIBR <- as.factor(dt_analysis$RiskIBR)
-dt_analysis$RiskAGAL <- as.factor(dt_analysis$RiskAGAL)
-dt_analysis$RiskPT <- as.factor(dt_analysis$RiskPT)
+risk_levels <- c("Low risk", "Medium risk", "High risk")
 
-dt_analysis$Season <- as.factor(dt_analysis$Season)
-levels(dt_analysis$Season) <- c("Autumn", "Spring", "Summer", "Winter")
+dt_analysis[, c("RiskIBR", "RiskAGAL", "RiskPT") := .(as.factor(RiskIBR), as.factor(RiskAGAL), as.factor(RiskPT))]
+levels(dt_analysis$RiskIBR) <- c("Low risk", "Medium risk", "High risk")
+levels(dt_analysis$RiskPT) <- c("Low risk", "Medium risk", "High risk")
+levels(dt_analysis$RiskAGAL) <- c("Low risk", "High risk")
 
-dt_analysis$Year <- as.factor(dt_analysis$Year)
-dt_analysis$YearNum <- as.numeric(dt_analysis$Year) - min(as.numeric(dt_analysis$Year))
+dt_analysis[, Season := as.factor(Season)]
+levels(dt_analysis$Season) <- c("Winter", "Spring", "Summer", "Autumn")
+
+dt_analysis[, Year := factor(Year)][, YearNum := as.numeric(Year) - min(as.numeric(Year))]
+
+quant <- quantile(dt_analysis$LogSCC, probs = seq(0, 1, 0.2), na.rm = TRUE)
+dt_analysis[, SCC_bins := cut(LogSCC, breaks = quant, include.lowest = TRUE)]
 
 dt_restricted <- dt_analysis[LogCBT > log(100000, base = 10) & LogSCC > log(300000, base = 10)]
 
 datasets <- list(dt_analysis = dt_analysis, dt_restricted = dt_restricted)
 
-variables <- list("Season", "RiskIBR", "RiskPT", "RiskAGAL")
+dt_year <- dt_analysis[, .(meanLogCBT = mean(LogCBT), meanLogSCC = mean(LogSCC)), by = .(Year, Season)][order(Year)]
+dt_month <- dt_analysis[, .(meanLogCBT = mean(LogCBT), meanLogSCC = mean(LogSCC)), by = .(Year, Month)][order(Year, Month)]
 
-palettes <- list(
-  "Year" = c("2016" = "#7E57C2", "2017" = "#9575CD", "2018" = "#673AB7", "2019" = "#B39DDB", "2020" = "#512DA8"),
-  "Season" = c("Spring" = "#9DC183", "Summer" = "#9B1B30", "Autumn" = "#DAA520", "Winter" = "#003366"),
-  "RiskIBR" = c("Low risk" = "#9DC183", "Medium risk" = "#DAA520", "High risk" = "#9B1B30"),
-  "RiskPT" = c("Low risk" = "#9DC183", "Medium risk" = "#DAA520", "High risk" = "#9B1B30"),
-  "RiskAGAL" = c("Low risk" = "#9DC183", "High risk" = "#9B1B30")
-  )
+p_year_cbt  <- plot_trend(dt_year, "Year", "meanLogCBT", "Season", "Season", "Mean Log CBT across years")
+p_year_scc  <- plot_trend(dt_year, "Year", "meanLogSCC", "Season", "Season", "Mean Log SCC across years")
+p_month_cbt <- plot_trend(dt_month, "Month", "meanLogCBT", "Year", "Year", "Seasonal pattern of Log CBT", TRUE)
+p_month_scc <- plot_trend(dt_month, "Month", "meanLogSCC", "Year", "Year", "Seasonal pattern of Log SCC", TRUE)
 
-dt_year <- dt_analysis[, .(meanLOG_CBT = mean(LogCBT), meanLOG_SCC = mean(LogSCC)), by = .(Year, Season)][order(Year)]
-dt_month <- dt_analysis[, .(meanLOG_CBT = mean(LogCBT), meanLOG_SCC = mean(LogSCC)), by = .(Year, Month)][order(Year, Month)]
+wrap_plots(p_year_cbt, p_year_scc, p_month_cbt, p_month_scc, ncol = 2)
+```
 
-p_year_cbt <- ggplot(dt_year, aes(x = as.numeric(as.character(Year)), y = meanLOG_CBT, colour = Season)) +
-  geom_smooth(method = "loess", se = FALSE, linewidth = 1, quiet = TRUE) +
-  scale_color_manual(values = palettes[["Season"]]) +
+Overall, these observations are consistent with the effect of increased temperatures, which can facilitate inflammation or bacterial growth and spread. Monthly pattern analysis confirms the trends observed in seasonal patterns across years and supports the conclusion that seasons are unbiased predictors of temporal variations in LogTBC and LogSCC.
+
+```{r, exploration.2, echo = FALSE, warning = FALSE, fig.width = 12}
+ggplot(dt_analysis, aes(x = RiskIBR, y = LogCBT, color = RiskAGAL, group = RiskAGAL)) +
+  stat_summary(fun = mean, geom = "point", size = 3) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
+  facet_wrap(~ RiskPT, labeller = label_both) + 
+  scale_color_manual(values = palettes[["RiskAGAL"]]) +
   labs(
-    title = "Mean Log CBT across years",
-    x = "Year",
-    y = "Mean Log CBT"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
-
-p_year_scc <- ggplot(dt_year, aes(x = as.numeric(as.character(Year)), y = meanLOG_CBT, colour = Season)) +
-  geom_smooth(method = "loess", se = FALSE, linewidth = 1, quiet = TRUE) +
-  scale_color_manual(values = palettes[["Season"]]) +
-  labs(
-    title = "Mean Log SCC across years",
-    x = "Year",
-    y = "Mean Log SCC"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
-
-p_month_cbt <- ggplot(dt_month, aes(x = Month, y=  meanLOG_CBT, colour = Year, group = Year)) +
-  geom_smooth(method = "loess", se = FALSE, linewidth = 1, quiet = TRUE) +
-  scale_color_manual(values = palettes[["Year"]]) +
-  scale_x_continuous(breaks = 1:12) +
-  labs(
-    title = "Seasonal pattern of Log CBT",
-    x = "Month",
+    title = "Sanitary Synergies: IBR and Agalassia Impact on CBT",
+    subtitle = "Analysis stratified by Paratuberculosis (PT) risk levels",
+    x = "IBR Risk Level",
     y = "Mean Log CBT",
-    colour = "Year"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme_minimal(base_size = 12) +
-  theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+    color = "Agalassia Risk"
+  ) +  my_theme
+```
 
-p_month_scc <- ggplot(dt_month, aes(x = Month, y = meanLOG_SCC, colour = factor(Year), group = Year)) +
-  geom_smooth(method = "loess", se = FALSE, linewidth = 1, quiet = TRUE) +
-  scale_color_manual(values = palettes[["Year"]]) +
-  scale_x_continuous(breaks = 1:12) +
+
+
+```{r, exploration.3, echo = FALSE, warning = FALSE, fig.width = 12}
+ggplot(dt_analysis, aes(x = RiskIBR, y = LogCBT, color = Season, group = Season)) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1) +
+  stat_summary(fun = mean, geom = "point", size = 2) +
+  facet_grid(RiskAGAL ~ RiskPT, labeller = label_both) +
+  scale_color_manual(values = palettes[["Season"]]) +
   labs(
-    title = "Seasonal pattern of Log SCC",
-    x = "Month",
-    y = "Mean Log SCC",
-    colour = "Year"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme_minimal(base_size = 12) +
-  theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+    title = "Seasonal Variation in Multi-Pathological Contexts",
+    subtitle = "Rows: Agalassia Risk | Columns: Paratuberculosis Risk",
+    x = "IBR Risk Level",
+    y = "Mean Log CBT",
+    color = "Season"
+  ) + my_theme
+```
 
-wrap_plots(c(p_year_cbt, p_year_scc, p_month_cbt, p_month_scc), ncol = 2)
+
+
+```{r, exploration.4, echo = FALSE, warning = FALSE, fig.width = 12}
+dt_long <- melt(dt_analysis, measure.vars = c("RiskIBR", "RiskAGAL", "RiskPT"), variable.name = "Disease", value.name = "RiskFactor")
+
+ggplot(dt_long, aes(x = Year, y = LogCBT, color = RiskFactor, group = RiskFactor)) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
+  stat_summary(fun = mean, geom = "point", size = 3) +
+  facet_wrap(~ Disease, scales = "free_y") +
+  scale_color_manual(values = palettes[["RiskIBR"]]) +
+  labs(
+    title = "Temporal Evolution of Sanitary Risks (2016-2020)",
+    subtitle = "Non-parallel trends indicate that the impact of disease varies over time",
+    x = "Year", 
+    y = "Mean Log CBT", 
+    color = "Risk Level"
+  ) + my_theme
+```
+
+
+
+```{r, exploration.5, echo = FALSE, warning = FALSE, fig.width = 12}
+ggplot(dt_long, aes(x = SCC_bins, y = LogCBT, color = RiskFactor, group = RiskFactor)) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
+  stat_summary(fun = mean, geom = "point", size = 3) +
+  facet_wrap(~ Disease) +
+  scale_color_manual(values = palettes[["RiskIBR"]]) +
+  labs(
+    title = "Sanitary Status by Somatic Cell Count (SCC) Interaction",
+    subtitle = "Varying slopes indicate that pathogens amplify the effect of mastitis on CBT",
+    x = "LogSCC Quintiles", 
+    y = "Mean Log CBT",
+    color = "Risk Level"
+  ) + my_theme
 ```
 
 ### 1.2 Descriptive Analysis
@@ -193,7 +181,7 @@ Analyzing the shape of the distributions is essential to justify the statistical
  
 - Log TBC (Total Bacterial Count): The distribution significantly deviates from normality. A marked multimodality is observed, with frequent peaks in the low-to-mid range and a long tail (skewness) towards high values (above 6.0 log). This irregularity justifies the adoption of more complex models, capable of modeling not only the mean but also the shape and variability of the distribution.
 
-```{r, exploration.2, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, exploration.6, echo = FALSE, warning = FALSE, fig.width = 12}
 mu <- mean(data$LogCBT, na.rm = TRUE)
 var <- var(data$LogCBT, na.rm = TRUE)
 
@@ -205,15 +193,8 @@ p1 <- ggplot(data, aes(x = LogCBT)) +
   geom_line(data = df, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
   labs(title = "Observed distribution vs. Normal distribution",
        x = "Log CBT",
-       y = "Desnity") +
-  theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+       y = "Desnity"
+  ) + my_theme
 
 mu <- mean(data$LogSCC, na.rm = TRUE)
 var <- var(data$LogSCC, na.rm = TRUE)
@@ -226,15 +207,8 @@ p2 <- ggplot(data, aes(x = LogSCC)) +
   geom_line(data = df, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
   labs(title = "Observed distribution vs. Normal distribution",
        x = "Log SCC",
-       y = "Density") +
-  theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+       y = "Density"
+  ) + my_theme
 
 wrap_plots(c(p1, p2), ncol = 2)
 ```
@@ -251,9 +225,8 @@ Stratified density plots allow visualization of how the risk profile shifts the 
 
 - Seasonality: The seasonal effect is confirmed, with the "Winter" distribution concentrated at lower values and the "Summer" distribution more spread toward higher values.
 
-```{r, exploration.3, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, exploration.7, echo = FALSE, warning = FALSE, fig.width = 12}
 plots_CBT <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogCBT", y, palettes[[y]], save = FALSE))
-
 wrap_plots(plots_CBT, ncol = 2)
 ```
 
@@ -261,9 +234,8 @@ wrap_plots(plots_CBT, ncol = 2)
 
 The comparison with SCC reveals a different dynamic than bacterial count. Unlike TBC, SCC distributions across risk factors appear much more homogeneous and overlapping. No major shifts in density peaks are observed between High and Low risk classes, except for a slight upward tendency for Agalactiae risk. This suggests that while herd health plans (PT, IBR, AGAL) have a direct and pronounced impact on milk bacterial contamination (TBC), their effect on somatic cells (SCC) is more subtle or mediated by other management factors not represented in these plots.
 
-```{r, exploration.4, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, exploration.8, echo = FALSE, warning = FALSE, fig.width = 12}
 plots_SCC <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogSCC", y, palettes[[y]], save = FALSE))
-
 wrap_plots(plots_SCC, ncol = 2)
 ```
 
@@ -381,7 +353,15 @@ This specification allows the model to capture both fixed effects associated wit
 
 ## **Comparative Analysis and Validation of Model Architectures**
 
+### Model structure selection
+
 ```{r, analysis.1, echo = FALSE, warning = FALSE, fig.width = 12}
+mod0 <- lm(LogCBT ~ Season + Year + LogSCC + RiskIBR + RiskAGAL + RiskPT, data = dt_analysis)
+```
+
+
+
+```{r, analysis.2, echo = FALSE, warning = FALSE, fig.width = 12}
 if (!file.exists("data/results/glm models.rds")) {
   glm_results <- list(
     LINmodCBT = glm(LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT, family = gaussian, data = dt_analysis),

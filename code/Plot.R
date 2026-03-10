@@ -1,4 +1,41 @@
 
+# Helper function to visualize seasonal (month) patterns
+plot_trend <- function(data, x, y, col, pal, title, is_month = FALSE, out_dir = "plot/", save = TRUE) {
+
+  # Assertions
+  assertDataFrame(data)
+  assertString(x)
+  assertString(y)
+  assertString(col)
+  assertString(pal)
+  assertString(title)
+  assertFlag(is_month)
+
+  plot <- ggplot(data, aes(x = !!sym(x), y = !!sym(y), colour = !!sym(col), group = !!sym(col))) +
+    geom_smooth(method = "loess", se = FALSE, linewidth = 1, quiet = TRUE) +
+    scale_color_manual(values = palettes[[pal]]) +
+    labs(title = title,
+         x = x,
+         y = y
+    ) + my_theme
+
+  if(is_month) plot <- plot + scale_x_continuous(breaks = 1:12)
+
+  if (save) {
+    filename <- paste0(title, ".png")
+
+    ggsave(
+      filename = file.path(out_dir, filename),
+      plot = plot,
+      width = 12,
+      height = 6,
+      dpi = 300
+    )
+  }
+
+  plot
+}
+
 # Function to plot densities for different categorical variables
 ggplot_density <- function(data, x, y, palette = NULL, out_dir = "plot/", save = TRUE) {
 
@@ -26,21 +63,13 @@ ggplot_density <- function(data, x, y, palette = NULL, out_dir = "plot/", save =
          x = x,
          y = y,
          fill = y
-         ) +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+     ) + my_theme
 
   if (save) {
     filename <- paste0(x, " density by ", y, ".png")
 
     ggsave(
-      file.path(out_dir, filename),
+      filename = file.path(out_dir, filename),
       plot = plot,
       width = 12,
       height = 6,
@@ -83,6 +112,14 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
   # Palette Viridis
   pal <- viridis(6)
 
+  # Theme for all plots 
+  my_theme <- theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"), 
+      axis.title = element_text(size = 12), panel.grid.major = element_line(color = "lightgray", linewidth = 0.5), 
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+    )
+
   # Linearity
   p1 <- ggplot(data, aes(x = eta.hat, y = dev.res)) +
     geom_point(alpha = 0.5, color = pal[1]) +
@@ -90,15 +127,8 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
     geom_smooth(method = "loess", se = FALSE, color = "#9B1B30") +
     labs(title = "Linearity",
          x = expression(eta),
-         y = "Deviance Residuals") +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+         y = "Deviance Residuals"
+    ) + my_theme
 
   # Link
   p2 <- ggplot(data, aes(x = eta.hat, y = zeta.hat)) +
@@ -106,15 +136,8 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
     geom_smooth(method = "lm", se = FALSE, color = "#9B1B30") +
     labs(title = "Link (Component + Residual)",
          x = expression(eta),
-         y = expression(zeta)) +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+         y = expression(zeta)
+    ) + my_theme
 
   # Residuals vs Fitted
   p3 <- ggplot(data, aes(x = mu.hat, y = std.res)) +
@@ -123,15 +146,8 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
     geom_smooth(method = "loess", se = FALSE, color = "#9B1B30") +
     labs(title = "Residuals vs Fitted",
          x = "Fitted values",
-         y = "Standardized Residuals") +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+         y = "Standardized Residuals"
+    ) + my_theme
 
   # Scale-Location
   p4 <- ggplot(data, aes(x = mu.hat, y = sqrt_std_res)) +
@@ -139,15 +155,8 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
     geom_smooth(method = "loess", se = FALSE, color = "#9B1B30") +
     labs(title = "Scale-Location Plot",
          x = "Fitted values",
-         y = expression(sqrt("|Standardized Residuals|"))) +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+         y = expression(sqrt("|Standardized Residuals|"))
+    ) + my_theme
 
   # Variance plot
   p5 <- ggplot(data, aes(x = mu.hat, y = res_var)) +
@@ -156,15 +165,8 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
     geom_smooth(method = "loess", se = FALSE, color = "#9B1B30") +
     labs(title = "Variance Plot",
          x = "Fitted values",
-         y = "Residuals / sqrt(Var)") +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+         y = "Residuals / sqrt(Var)"
+    ) + my_theme
 
   # Normal Q-Q
   qq <- qqnorm(std.res, plot.it = FALSE)
@@ -174,15 +176,8 @@ ggplot_glm_diagnostics <- function(obj, data, y, model = "glm", out_dir = "plot/
     stat_qq_line(color = "#9B1B30", linewidth = 1) +
     labs(title = "Normal Q-Q Plot",
          x = "Theoretical Quantiles",
-         y = "Standardized Residuals") +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+         y = "Standardized Residuals"
+    ) + my_theme
 
   wp <- wrap_plots(p1, p2, p3, p4, p5, p6, ncol = 2)
 
@@ -252,6 +247,14 @@ ggplot_gamlss_diagnostics <- function(obj, xvar = NULL, summaries = TRUE, model 
 
   pal <- viridis(6)
 
+  # Theme for all plots 
+  my_theme <- theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"), 
+      axis.title = element_text(size = 12), panel.grid.major = element_line(color = "lightgray", linewidth = 0.5), 
+      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
+    )
+
   # Residuals vs Fitted
   p1 <- ggplot(df, aes(fitted, residuals)) +
     geom_point(color = pal[5], alpha = 0.7) +
@@ -260,15 +263,7 @@ ggplot_gamlss_diagnostics <- function(obj, xvar = NULL, summaries = TRUE, model 
       title = "Against Fitted Values",
       x = "Fitted Values",
       y = "Quantile Residuals"
-    ) +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+    ) + my_theme
 
   # Residuals vs x
   p2 <- ggplot(df, aes(xvar, residuals)) +
@@ -278,15 +273,7 @@ ggplot_gamlss_diagnostics <- function(obj, xvar = NULL, summaries = TRUE, model 
       title = paste("Against", xlab),
       x = xlab,
       y = "Quantile Residuals"
-    ) +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+    ) + my_theme
 
   # Density plot
   p3 <- ggplot(df, aes(residuals)) +
@@ -296,15 +283,7 @@ ggplot_gamlss_diagnostics <- function(obj, xvar = NULL, summaries = TRUE, model 
       title = "Density Estimate",
       x = "Quantile Residuals",
       y = "Density"
-    ) +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+    ) + my_theme
 
   # QQ plot
   p4 <- ggplot(df, aes(sample = residuals)) +
@@ -314,15 +293,7 @@ ggplot_gamlss_diagnostics <- function(obj, xvar = NULL, summaries = TRUE, model 
       title = "Normal Q-Q Plot",
       x = "Theoretical Quantiles",
       y = "Sample Quantiles"
-    ) +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold"),
-      axis.title = element_text(size = 12), axis.text = element_text(size = 10),
-      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-      panel.grid.minor = element_blank(), legend.position = "top", legend.title = element_text(face = "bold")
-    )
+    ) + my_theme
 
   wp <- wrap_plots(p1, p2, p3, p4, ncol = 2)
 
@@ -404,27 +375,30 @@ ggplot_coefficients <- function(models, colours = NULL, model = "model", out_dir
     colours <- setNames(colours[1:length(models)], names(models))
   }
 
-  plot_data <- list()
-
   # 1. Extract coefficients (mu only)
-  for (i in seq_along(models)) {
-    plot_data[[i]] <- tidy(models[[i]]) |> filter(parameter == "mu") |> mutate(Model = names(models)[[i]])
-  }
-
-  dt <- bind_rows(plot_data)
+  dt <- rbindlist(lapply(seq_along(models), function(i) {
+    as.data.table(tidy(models[[i]]))[parameter == "mu"][, Model := names(models)[i]]
+  }))
 
   # 2. Data preparation
-  plot_data_final <- dt %>%
-    filter(term != "(Intercept)") %>%
-    mutate(
-      term = gsub("`", "", term),
-      term = gsub("Risk - ", "", term),
-      term = gsub("Season", "Season: ", term),
-      Group = dplyr::case_when(
-        grepl("Season", term) ~ "Seasonal patterns",
-        grepl("Year", term) ~ "Annual trends",
-        TRUE ~ "Sanitary risks (Screening)"
-      )
+  plot_data_final <- dt[term != "(Intercept)", `:=` (
+    term = gsub("`|Risk - ", "", term),
+    term = gsub("Season", "Season: ", term)
+  )][, Group := fcase(
+    grepl("Season", term), "Seasonal patterns",
+    grepl("Year", term), "Annual trends",
+    default = "Sanitary risks (Screening)"
+  )]
+
+  # Theme for all plots 
+  my_theme <- theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      axis.title = element_text(size = 12),
+      panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
+      panel.grid.minor = element_blank(),
+      legend.position = "top",
+      legend.title = element_text(face = "bold")
     )
 
   # 3. Plot
