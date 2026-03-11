@@ -85,12 +85,11 @@ levels(dt_analysis$Season) <- c("Winter", "Spring", "Summer", "Autumn")
 
 dt_analysis[, Year := factor(Year)][, YearNum := as.numeric(Year) - min(as.numeric(Year))]
 
-quant <- quantile(dt_analysis$LogSCC, probs = seq(0, 1, 0.2), na.rm = TRUE)
-dt_analysis[, SCC_bins := cut(LogSCC, breaks = quant, include.lowest = TRUE)]
+quantSCC <- quantile(dt_analysis$LogSCC, probs = seq(0, 1, 0.2), na.rm = TRUE)
+quantCBT <- quantile(dt_analysis$LogCBT, probs = seq(0, 1, 0.2), na.rm = TRUE)
+dt_analysis[, c("SCCbins", "CBTbins") := .(cut(LogSCC, breaks = quantSCC, include.lowest = TRUE), cut(LogCBT, breaks = quantCBT, include.lowest = TRUE))]
 
 dt_restricted <- dt_analysis[LogCBT > log(100000, base = 10) & LogSCC > log(300000, base = 10)]
-
-datasets <- list(dt_analysis = dt_analysis, dt_restricted = dt_restricted)
 
 dt_year <- dt_analysis[, .(meanLogCBT = mean(LogCBT), meanLogSCC = mean(LogSCC)), by = .(Year, Season)][order(Year)]
 dt_month <- dt_analysis[, .(meanLogCBT = mean(LogCBT), meanLogSCC = mean(LogSCC)), by = .(Year, Month)][order(Year, Month)]
@@ -106,7 +105,7 @@ wrap_plots(p_year_cbt, p_year_scc, p_month_cbt, p_month_scc, ncol = 2)
 Overall, these observations are consistent with the effect of increased temperatures, which can facilitate inflammation or bacterial growth and spread. Monthly pattern analysis confirms the trends observed in seasonal patterns across years and supports the conclusion that seasons are unbiased predictors of temporal variations in LogTBC and LogSCC.
 
 ```{r, exploration.2, echo = FALSE, warning = FALSE, fig.width = 12}
-ggplot(dt_analysis, aes(x = RiskIBR, y = LogCBT, color = RiskAGAL, group = RiskAGAL)) +
+p1 <- ggplot(dt_analysis, aes(x = RiskIBR, y = LogCBT, color = RiskAGAL, group = RiskAGAL)) +
   stat_summary(fun = mean, geom = "point", size = 3) +
   stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
   facet_wrap(~ RiskPT, labeller = label_both) + 
@@ -118,12 +117,27 @@ ggplot(dt_analysis, aes(x = RiskIBR, y = LogCBT, color = RiskAGAL, group = RiskA
     y = "Mean Log CBT",
     color = "Agalassia Risk"
   ) +  my_theme
+
+p2 <- ggplot(dt_analysis, aes(x = RiskIBR, y = LogSCC, color = RiskAGAL, group = RiskAGAL)) +
+  stat_summary(fun = mean, geom = "point", size = 3) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
+  facet_wrap(~ RiskPT, labeller = label_both) + 
+  scale_color_manual(values = palettes[["RiskAGAL"]]) +
+  labs(
+    title = "Sanitary Synergies: IBR and Agalassia Impact on SCC",
+    subtitle = "Analysis stratified by Paratuberculosis (PT) risk levels",
+    x = "IBR Risk Level",
+    y = "Mean SCC CBT",
+    color = "Agalassia Risk"
+  ) +  my_theme
+
+wrap_plots(c(p1, p2), ncol = 2)
 ```
 
 
 
 ```{r, exploration.3, echo = FALSE, warning = FALSE, fig.width = 12}
-ggplot(dt_analysis, aes(x = RiskIBR, y = LogCBT, color = Season, group = Season)) +
+p1 <- ggplot(dt_analysis, aes(x = RiskIBR, y = LogCBT, color = Season, group = Season)) +
   stat_summary(fun = mean, geom = "line", linewidth = 1) +
   stat_summary(fun = mean, geom = "point", size = 2) +
   facet_grid(RiskAGAL ~ RiskPT, labeller = label_both) +
@@ -135,6 +149,21 @@ ggplot(dt_analysis, aes(x = RiskIBR, y = LogCBT, color = Season, group = Season)
     y = "Mean Log CBT",
     color = "Season"
   ) + my_theme
+
+p2 <- ggplot(dt_analysis, aes(x = RiskIBR, y = LogSCC, color = Season, group = Season)) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1) +
+  stat_summary(fun = mean, geom = "point", size = 2) +
+  facet_grid(RiskAGAL ~ RiskPT, labeller = label_both) +
+  scale_color_manual(values = palettes[["Season"]]) +
+  labs(
+    title = "Seasonal Variation in Multi-Pathological Contexts",
+    subtitle = "Rows: Agalassia Risk | Columns: Paratuberculosis Risk",
+    x = "IBR Risk Level",
+    y = "Mean Log SCC",
+    color = "Season"
+  ) + my_theme
+
+wrap_plots(c(p1, p2), ncol = 2)
 ```
 
 
@@ -142,7 +171,7 @@ ggplot(dt_analysis, aes(x = RiskIBR, y = LogCBT, color = Season, group = Season)
 ```{r, exploration.4, echo = FALSE, warning = FALSE, fig.width = 12}
 dt_long <- melt(dt_analysis, measure.vars = c("RiskIBR", "RiskAGAL", "RiskPT"), variable.name = "Disease", value.name = "RiskFactor")
 
-ggplot(dt_long, aes(x = Year, y = LogCBT, color = RiskFactor, group = RiskFactor)) +
+p1 <- ggplot(dt_long, aes(x = Year, y = LogCBT, color = RiskFactor, group = RiskFactor)) +
   stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
   stat_summary(fun = mean, geom = "point", size = 3) +
   facet_wrap(~ Disease, scales = "free_y") +
@@ -154,12 +183,27 @@ ggplot(dt_long, aes(x = Year, y = LogCBT, color = RiskFactor, group = RiskFactor
     y = "Mean Log CBT", 
     color = "Risk Level"
   ) + my_theme
+
+p2 <- ggplot(dt_long, aes(x = Year, y = LogSCC, color = RiskFactor, group = RiskFactor)) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
+  stat_summary(fun = mean, geom = "point", size = 3) +
+  facet_wrap(~ Disease, scales = "free_y") +
+  scale_color_manual(values = palettes[["RiskIBR"]]) +
+  labs(
+    title = "Temporal Evolution of Sanitary Risks (2016-2020)",
+    subtitle = "Non-parallel trends indicate that the impact of disease varies over time",
+    x = "Year", 
+    y = "Mean Log SCC", 
+    color = "Risk Level"
+  ) + my_theme
+
+wrap_plots(c(p1, p2), ncol = 2)
 ```
 
 
 
 ```{r, exploration.5, echo = FALSE, warning = FALSE, fig.width = 12}
-ggplot(dt_long, aes(x = SCC_bins, y = LogCBT, color = RiskFactor, group = RiskFactor)) +
+p1 <- ggplot(dt_long, aes(x = SCCbins, y = LogCBT, color = RiskFactor, group = RiskFactor)) +
   stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
   stat_summary(fun = mean, geom = "point", size = 3) +
   facet_wrap(~ Disease) +
@@ -171,6 +215,21 @@ ggplot(dt_long, aes(x = SCC_bins, y = LogCBT, color = RiskFactor, group = RiskFa
     y = "Mean Log CBT",
     color = "Risk Level"
   ) + my_theme
+
+p2 <- ggplot(dt_long, aes(x = CBTbins, y = LogSCC, color = RiskFactor, group = RiskFactor)) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
+  stat_summary(fun = mean, geom = "point", size = 3) +
+  facet_wrap(~ Disease) +
+  scale_color_manual(values = palettes[["RiskIBR"]]) +
+  labs(
+    title = "Sanitary Status by Somatic Cell Count (CBT) Interaction",
+    subtitle = "Varying slopes indicate that pathogens amplify the effect of mastitis on SCC",
+    x = "LogCBT Quintiles", 
+    y = "Mean Log SCC",
+    color = "Risk Level"
+  ) + my_theme
+
+wrap_plots(c(p1, p2), ncol = 2)
 ```
 
 ### 1.2 Descriptive Analysis
@@ -356,53 +415,50 @@ This specification allows the model to capture both fixed effects associated wit
 ### Model structure selection
 
 ```{r, analysis.1, echo = FALSE, warning = FALSE, fig.width = 12}
-mod0 <- lm(LogCBT ~ Season + Year + LogSCC + RiskIBR + RiskAGAL + RiskPT, data = dt_analysis)
-mod1 <- lm(LogCBT ~ Season + YearNum + LogSCC + RiskIBR + RiskAGAL + RiskPT, data = dt_analysis)
-mod2 <- lm(LogCBT ~ Season + poly(YearNum, 2) + LogSCC + RiskIBR + RiskAGAL + RiskPT, data = dt_analysis)
-mod3 <- lm(LogCBT ~ (Season + Year + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2, data = dt_analysis)
-mod4 <- lm(LogCBT ~ (Season + YearNum + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2, data = dt_analysis)
-mod5 <- lm(LogCBT ~ (Season + poly(YearNum, 2) + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2, data = dt_analysis)
+modCBT <- lm(LogCBT ~ (Season + Year + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2, data = dt_analysis)
+MASS::stepAIC(modCBT)
 
-models <- list(
-  "Model with additive terms (categorical Year)" = mod0,
-  "Model with additive terms (numerical Year)" = mod1,
-  "Model with additive terms (polynomial Year)" = mod2,
-  "Model with multiplicative terms (categorical Year)" = mod3,
-  "Model with multiplicative termes (numerical Year)" = mod4,
-  "Model with multiplicative terms (polynomial Year)" = mod5
-  )
-
-dt <- rbindlist(lapply(models, function(x) {
-  data.table(Models = NA_character_, AIC = AIC(x), BIC = BIC(x))
-}))
-
-dt$Models <- names(models)
-dt[]
+modSCC <- lm(LogSCC ~ (Season + Year + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2, data = dt_analysis)
+MASS::stepAIC(modSCC)
 ```
 
 ```{r, analysis.2, echo = FALSE, warning = FALSE, fig.width = 12}
-if (!file.exists("data/results/glm models.rds")) {
-  glm_results <- list(
-    LINmodCBT = glm(LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT, family = gaussian, data = dt_analysis),
+if (!file.exists("data/results/gam models.rds")) {
+  gam_results <- list(
+    LINmodCBT = bam(
+      formula = LogCBT ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 + 
+      Season:LogSCC + Season:RiskIBR + Season:RiskPT + LogSCC:RiskIBR + LogSCC:RiskPT +
+      s(YearNum, bs = "ps", by = Season) + s(YearNum, bs = "ps", by = RiskIBR) + s(YearNum, bs = "ps", by = RiskPT),
+      data = dt_analysis, method = "ML"
+    ),
 
-    LINmodSCC = glm(LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT, family = gaussian, data = dt_analysis)
+    LINmodSCC = bam(LogSCC ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
+      Season:LogCBT + Season:RiskIBR + Season:RiskPT + LogCBT:RiskIBR + LogCBT:RiskPT +
+      s(YearNum, bs = "ps", by = Season) + s(YearNum, bs = "ps", by = RiskIBR) + s(YearNum, bs = "ps", by = RiskPT),
+      data = dt_analysis, method = "ML"
+    )
   )
 
-  saveRDS(glm_results, file = "data/results/glm models.rds")
+  saveRDS(gam_results, file = "data/results/gam models.rds")
 }
 
-if (!file.exists("data/results/mixed models.rds")) {
-  mixed_models_results <- list(
-    LINmixedFarmCBT = lmer(formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), data = dt_analysis, REML = FALSE),
+if (!file.exists("data/results/gamm4 models.rds")) {
+  plan(multisession, workers = parallel::detectCores() - 1)
 
-    LINmixedYear.FarmCBT = lmer(formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (YearNum|Farm), data = dt_analysis, REML = FALSE),
-
-    LINmixedFarmSCC = lmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (1|Farm), data = dt_analysis, REML = FALSE),
-
-    LINmixedYear.FarmSCC = lmer(formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + (YearNum|Farm), data = dt_analysis, REML = FALSE)
+  gamm4_results <- future_lapply(
+    X = models_gamm4,
+    FUN = function(mod) {
+      run_gamm4_safely(
+        model = mod,  # model
+        data = data   # data
+      )
+    },
+    future.packages = "gamm4",
+    future.seed = TRUE,
+    future.globals = list(run_gamm4_safely = run_gamm4_safely, data = dt_analysis)
   )
 
-  saveRDS(mixed_models_results, file = "data/results/mixed models.rds")
+  saveRDS(gamm4_results, file = "data/results/gamm4 models.rds")
 }
 
 if (!file.exists("data/results/gamlss models.rds")) {
@@ -411,21 +467,21 @@ if (!file.exists("data/results/gamlss models.rds")) {
   gamlss_results <- future_lapply(
     X = models_gamlss,
     FUN = function(mod) {
-      run_model_safely(
-        spec = mod,            # model
-        data = datasets        # data
+      run_gamlss_safely(
+        model = mod,  # model
+        data = data   # data
       )
     },
-    future.packages = c("gamlss", "nlme"),
+    future.packages = "gamlss",
     future.seed = TRUE,
-    future.globals = list(datasets = datasets, run_model_safely = run_model_safely)
+    future.globals = list(run_model_safely = run_model_safely, data = dt_analysis)
   )
 
   saveRDS(gamlss_results, file = "data/results/gamlss models.rds")
 }
 
-glm_results <- readRDS(file = "data/results/glm models.rds")
-mixed_models_results <- readRDS(file = "data/results/mixed models.rds")
+gam_results <- readRDS(file = "data/results/gam models.rds")
+gamm4_results <- readRDS(file = "data/results/gamm4 models.rds")
 gamlss_results <- readRDS(file = "data/results/gamlss models.rds")
 ```
 
@@ -436,9 +492,9 @@ The dramatic reduction in both criteria (from an AIC of 91468.97 for the linear 
 
 ```{r, results.1, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_CBT <- list(
-  "Linear Model" = glm_results$LINmodCBT,
-  "Linear Mixed Model 1|Farm" = mixed_models_results$LINmixedFarmCBT,
-  "Linear Mixed Model Year|Farm" = mixed_models_results$LINmixedYear.FarmCBT,
+  "Linear Model" = gam_results$LINmodCBT,
+  "Linear Mixed Model 1|Farm" = gamm4_results$LINmixedFarmCBT$mer,
+  "Linear Mixed Model Year|Farm" = gamm4_results$LINmixedYear.FarmCBT$mer,
   "GAMLSS Linear Model 1|Farm" = gamlss_results$LINFarmCBT,
   "GAMLSS Linear Model Year|Farm" = gamlss_results$LINYear.FarmCBT,
   "GAMLSS Box-Cox t distribution 1|Farm" = gamlss_results$BCTFarmCBT,
@@ -549,9 +605,9 @@ Although the general pattern of model improvement remains similar, the statistic
 
 ```{r, results.5, echo = FALSE, warning = FALSE, fig.width = 12}
 objects_SCC <- list(
-  "Linear Model" = glm_results$LINmodSCC,
-  "Linear Mixed Model 1|Farm" = mixed_models_results$LINmixedFarmSCC,
-  "Linear Mixed Model Year|Farm" = mixed_models_results$LINmixedYear.FarmSCC,
+  "Linear Model" = gam_results$LINmodSCC,
+  "Linear Mixed Model 1|Farm" = gamm4_results$LINmixedFarmSCC$mer,
+  "Linear Mixed Model Year|Farm" = gamm4_results$LINmixedYear.FarmSCC$mer,
   "GAMLSS Linear Model 1|Farm" = gamlss_results$LINFarmSCC,
   "GAMLSS Linear Model Year|Farm" = gamlss_results$LINYear.FarmSCC,
   "GAMLSS Box-Cox t distribution 1|Farm" = gamlss_results$BCTFarmSCC,

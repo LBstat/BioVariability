@@ -6,8 +6,8 @@ library(readxl)
 # Data manipulation and handling
 library(data.table)
 library(checkmate)
-library(naniar)
 library(broom.mixed)
+library(naniar)
 library(purrr)
 
 # Data visualization
@@ -40,7 +40,8 @@ my_theme <- theme_minimal(base_size = 12) +
   )
 
 # Data analysis
-library(lme4)
+library(mgcv)
+library(gamm4)
 library(gamlss)
 
 # Parallelization

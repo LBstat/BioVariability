@@ -1,61 +1,52 @@
 
-run_model_safely <- function(spec, data, optimizer = "nlimnb") {
+run_gamm4_safely <- function(model, data) {
 
   # Assertions
-  assertList(spec, names = "named")
+  assertClass(model, classes = "gamm4")
   assertDataFrame(data, any.missing = FALSE)
-  assertString(optimizer)
+
+  result <- tryCatch({
+    gamm4(formula = model$formula, random = model$random, data = data, REML = FALSE)
+  }, error = function(e) {
+    return(list(status = "error", message = e$message, model = model))
+  })
+
+  return(result)
+}
+
+run_gamlss_safely <- function(model, data, optimizer = "nlimnb") {
+
+  # Assertions
+  assertClass(model, classes = "gamlss")
+  assertDataFrame(data, any.missing = FALSE)
   assertChoice(optimizer, choices = c("nlimnb", "optim"))
 
-  # 1. Get the data
-  current_data <- as.data.frame(data[[spec$data]])
-
-  # 2. Cean formulas
-  formula_mu_str <- paste(deparse(spec$formula), collapse = "")
-  formula_mu     <- as.formula(formula_mu_str)
-
-  if(!is.null(spec$sigma)) {
-    formula_sigma_str <- paste(deparse(spec$sigma), collapse = "")
-    formula_sigma   <- as.formula(formula_sigma_str)
-  } else {
-    formula_sigma <- ~1
-  }
-
-  # Set environment to local scope
-  environment(formula_mu) <- environment()
-  environment(formula_sigma) <- environment()
-
-  # 3. Data check: ensure the response variable is numeric
-  response_var <- all.vars(formula_mu)[1]
-  current_data[[response_var]] <- as.numeric(current_data[[response_var]])
-
-  # 4. Run model
   if (optimizer == "nlimnb") {
     result <- tryCatch({
       gamlss(
-        formula = formula_mu,
-        sigma.formula = formula_sigma,
-        family = spec$family, 
-        data = current_data,
+        formula = model$formula,
+        sigma.formula = model$sigma,
+        family = model$family, 
+        data = data,
         method = RS(),
-        control = gamlss.control(trace = FALSE)
+        control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30)
       )
     }, error = function(e) {
-      return(list(status = "error", message = e$message, spec = spec))
+      return(list(status = "error", message = e$message, model = model))
     })
   } else {
     result <- tryCatch({
       gamlss(
-        formula = formula_mu,
-        sigma.formula = formula_sigma,
-        family = spec$family, 
-        data = current_data,
+        formula = model$formula,
+        sigma.formula = model$sigma,
+        family = model$family, 
+        data = data,
         method = RS(),
-        control = gamlss.control(trace = FALSE),
+        control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30),
         c.control = lmeControl(opt = "optim", maxIter = 50, msMaxIter = 50)
       )
     }, error = function(e) {
-      return(list(status = "error", message = e$message, spec = spec))
+      return(list(status = "error", message = e$message, model = model))
     })
   }
 
