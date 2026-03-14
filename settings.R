@@ -11,8 +11,9 @@ library(naniar)
 library(purrr)
 
 # Data visualization
-library(viridis)
 library(ggridges)
+library(ggrepel)
+library(qqplotr)
 library(patchwork)
 library(DHARMa)
 
@@ -26,18 +27,6 @@ palettes <- list(
   "RiskPT" = c("Low risk" = "#9DC183", "Medium risk" = "#DAA520", "High risk" = "#9B1B30"),
   "RiskAGAL" = c("Low risk" = "#9DC183", "High risk" = "#9B1B30")
 )
-
-# Theme style for plots
-my_theme <- theme_minimal(base_size = 12) +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, size = 12),
-    axis.title = element_text(size = 12),
-    panel.grid.major = element_line(color = "lightgray", linewidth = 0.5),
-    panel.grid.minor = element_blank(),
-    legend.position = "top",
-    legend.title = element_text(face = "bold")
-  )
 
 # Data analysis
 library(mgcv)

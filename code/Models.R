@@ -39,7 +39,7 @@ models_gamlss <- list(
     sigma = ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 +
     Season:LogSCC + Season:RiskIBR + Season:RiskPT + LogSCC:RiskIBR + LogSCC:RiskPT +
     pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
-    family = NO(mu.link = "identity", sigma.link = "log")
+    family_str = 'NO(mu.link = "identity", sigma.link = "log")'
   ),
 
   LINFarmSCC = list(
@@ -49,7 +49,7 @@ models_gamlss <- list(
     sigma = ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
     Season:LogCBT + Season:RiskIBR + Season:RiskPT + LogCBT:RiskIBR + LogCBT:RiskPT +
     pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
-    family = NO(mu.link = "identity", sigma.link = "log")
+    family_str = 'NO(mu.link = "identity", sigma.link = "log")'
   ),
 
   LINYear.FarmCBT = list(
@@ -59,7 +59,7 @@ models_gamlss <- list(
     sigma = ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 +
     Season:LogSCC + Season:RiskIBR + Season:RiskPT + LogSCC:RiskIBR + LogSCC:RiskPT +
     pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
-    family = NO(mu.link = "identity", sigma.link = "log")
+    family_str = 'NO(mu.link = "identity", sigma.link = "log")'
   ),
 
   LINYear.FarmSCC = list(
@@ -69,7 +69,7 @@ models_gamlss <- list(
     sigma = ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
     Season:LogCBT + Season:RiskIBR + Season:RiskPT + LogCBT:RiskIBR + LogCBT:RiskPT +
     pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
-    family = NO(mu.link = "identity", sigma.link = "log")
+    family_str = 'NO(mu.link = "identity", sigma.link = "log")'
   ),
 
   BCTFarmCBT = list(
@@ -79,7 +79,7 @@ models_gamlss <- list(
     sigma = ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 +
     Season:LogSCC + Season:RiskIBR + Season:RiskPT + LogSCC:RiskIBR + LogSCC:RiskPT +
     pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
-    family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")
+    family_str = 'BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")'
   ),
 
   BCTFarmSCC = list(
@@ -89,7 +89,7 @@ models_gamlss <- list(
     sigma = ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
     Season:LogCBT + Season:RiskIBR + Season:RiskPT + LogCBT:RiskIBR + LogCBT:RiskPT +
     pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
-    family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")
+    family_str = 'BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")'
   ),
 
   BCTYear.FarmCBT = list(
@@ -99,7 +99,7 @@ models_gamlss <- list(
     sigma = ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 +
     Season:LogSCC + Season:RiskIBR + Season:RiskPT + LogSCC:RiskIBR + LogSCC:RiskPT +
     pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
-    family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")
+    family_str = 'BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")'
   ),
 
   BCTYear.FarmSCC = list(
@@ -109,7 +109,7 @@ models_gamlss <- list(
     sigma = ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
     Season:LogCBT + Season:RiskIBR + Season:RiskPT + LogCBT:RiskIBR + LogCBT:RiskPT +
     pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
-    family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")
+    family_str = 'BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")'
   ),
 
   ST2FarmCBT = list(
@@ -119,7 +119,7 @@ models_gamlss <- list(
     sigma = ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 +
     Season:LogSCC + Season:RiskIBR + Season:RiskPT + LogSCC:RiskIBR + LogSCC:RiskPT +
     pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
-    family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")
+    family_str = 'ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")'
   ),
 
   ST2FarmSCC = list(
@@ -129,7 +129,7 @@ models_gamlss <- list(
     sigma = ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
     Season:LogCBT + Season:RiskIBR + Season:RiskPT + LogCBT:RiskIBR + LogCBT:RiskPT +
     pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
-    family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")
+    family_str = 'ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")'
   ),
 
   ST2Year.FarmCBT = list(
@@ -139,7 +139,7 @@ models_gamlss <- list(
     sigma = ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 +
     Season:LogSCC + Season:RiskIBR + Season:RiskPT + LogSCC:RiskIBR + LogSCC:RiskPT +
     pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
-    family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")
+    family_str = 'ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")'
   ),
 
   ST2Year.FarmSCC = list(
@@ -149,6 +149,6 @@ models_gamlss <- list(
     sigma = ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
     Season:LogCBT + Season:RiskIBR + Season:RiskPT + LogCBT:RiskIBR + LogCBT:RiskPT +
     pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
-    family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")
+    family_str = 'ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log")'
   )
 )

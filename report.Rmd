@@ -8,10 +8,15 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  message = FALSE,   # Nasconde i messaggi come quello di geom_smooth
-  warning = FALSE,   # Nasconde gli avvisi (es. righe rimosse con NA)
-  echo = FALSE       # Non mostra il codice, solo i risultati
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 12,
+  echo = FALSE
 )
+
+# If you don't have the trained models already, you need to expect a large training time (> 2.5 hours).
+# Don't change this setup unless needed!
+TRAIN_MODELS = FALSE
 ```
 
 ## **Introduction**
@@ -56,9 +61,9 @@ From the original dataset containing 89,993 records, missing data were removed. 
 
 - RiskPT (herd risk level for PT)
 
-To highlight temporal and seasonal patterns, data were aggregated by year and season, and by year and month, calculating the mean of logarithmic bacterial and somatic cell counts for each group. Graphical analysis clearly shows that, across years, seasonal patterns have a marginal impact on the mean logarithmic values. Summer exhibits higher mean log TBC and SCC values compared to other seasons, while winter shows the lowest values. Moreover, clear cross-over interaction phenomena can be observed.Since the seasonal trend lines do not maintain a parallel course across years or between different risk levels, it can be inferred that the effect of seasonality on TBC and SCC is conditioned by temporal and herd health factors. This evidence violates the additivity assumption of simple models, making the inclusion of interaction terms necessary to avoid estimation errors (bias).
+To highlight temporal and seasonal patterns, data were aggregated by year and season, and by year and month, calculating the mean of logarithmic bacterial and somatic cell counts for each group. Graphical analysis clearly shows that, across years, seasonal patterns have a marginal impact on the mean logarithmic values. Summer exhibits higher mean log TBC and SCC values compared to other seasons, while winter shows the lowest values. Moreover, clear cross-over interaction phenomena can be observed. Since the seasonal trend lines do not maintain a parallel course across years or between different risk levels, it can be inferred that the effect of seasonality on TBC and SCC is conditioned by temporal and herd health factors. This evidence violates the additivity assumption of simple models, making the inclusion of interaction terms necessary to avoid estimation errors (bias).
 
-```{r, exploration.1, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, exploration.1}
 source("settings.R")
 source("source_all.R")
 
@@ -73,14 +78,14 @@ dt_analysis <- na.omit(data)
 
 missing_values_percent <- 1 - nrow(dt_analysis) / nrow(data)
 
-risk_levels <- c("Low risk", "Medium risk", "High risk")
-
 dt_analysis[, c("RiskIBR", "RiskAGAL", "RiskPT") := .(as.factor(RiskIBR), as.factor(RiskAGAL), as.factor(RiskPT))]
+
 levels(dt_analysis$RiskIBR) <- c("Low risk", "Medium risk", "High risk")
 levels(dt_analysis$RiskPT) <- c("Low risk", "Medium risk", "High risk")
 levels(dt_analysis$RiskAGAL) <- c("Low risk", "High risk")
 
 dt_analysis[, Season := as.factor(Season)]
+
 levels(dt_analysis$Season) <- c("Winter", "Spring", "Summer", "Autumn")
 
 dt_analysis[, Year := factor(Year)][, YearNum := as.numeric(Year) - min(as.numeric(Year))]
@@ -89,150 +94,86 @@ quantSCC <- quantile(dt_analysis$LogSCC, probs = seq(0, 1, 0.2), na.rm = TRUE)
 quantCBT <- quantile(dt_analysis$LogCBT, probs = seq(0, 1, 0.2), na.rm = TRUE)
 dt_analysis[, c("SCCbins", "CBTbins") := .(cut(LogSCC, breaks = quantSCC, include.lowest = TRUE), cut(LogCBT, breaks = quantCBT, include.lowest = TRUE))]
 
-dt_restricted <- dt_analysis[LogCBT > log(100000, base = 10) & LogSCC > log(300000, base = 10)]
-
 dt_year <- dt_analysis[, .(meanLogCBT = mean(LogCBT), meanLogSCC = mean(LogSCC)), by = .(Year, Season)][order(Year)]
 dt_month <- dt_analysis[, .(meanLogCBT = mean(LogCBT), meanLogSCC = mean(LogSCC)), by = .(Year, Month)][order(Year, Month)]
 
-p_year_cbt  <- plot_trend(dt_year, "Year", "meanLogCBT", "Season", "Season", "Mean Log CBT across years")
-p_year_scc  <- plot_trend(dt_year, "Year", "meanLogSCC", "Season", "Season", "Mean Log SCC across years")
-p_month_cbt <- plot_trend(dt_month, "Month", "meanLogCBT", "Year", "Year", "Seasonal pattern of Log CBT", TRUE)
-p_month_scc <- plot_trend(dt_month, "Month", "meanLogSCC", "Year", "Year", "Seasonal pattern of Log SCC", TRUE)
+p_year_cbt  <- ggplot_trend(dt_year, "Year", "meanLogCBT", "Season", "Season", "Mean Log CBT across years")
+p_year_scc  <- ggplot_trend(dt_year, "Year", "meanLogSCC", "Season", "Season", "Mean Log SCC across years")
+p_month_cbt <- ggplot_trend(dt_month, "Month", "meanLogCBT", "Year", "Year", "Seasonal pattern of Log CBT", TRUE)
+p_month_scc <- ggplot_trend(dt_month, "Month", "meanLogSCC", "Year", "Year", "Seasonal pattern of Log SCC", TRUE)
 
 wrap_plots(p_year_cbt, p_year_scc, p_month_cbt, p_month_scc, ncol = 2)
 ```
 
 Overall, these observations are consistent with the effect of increased temperatures, which can facilitate inflammation or bacterial growth and spread. Monthly pattern analysis confirms the trends observed in seasonal patterns across years and supports the conclusion that seasons are unbiased predictors of temporal variations in LogTBC and LogSCC.
 
-```{r, exploration.2, echo = FALSE, warning = FALSE, fig.width = 12}
-p1 <- ggplot(dt_analysis, aes(x = RiskIBR, y = LogCBT, color = RiskAGAL, group = RiskAGAL)) +
-  stat_summary(fun = mean, geom = "point", size = 3) +
-  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
-  facet_wrap(~ RiskPT, labeller = label_both) + 
-  scale_color_manual(values = palettes[["RiskAGAL"]]) +
-  labs(
-    title = "Sanitary Synergies: IBR and Agalassia Impact on CBT",
-    subtitle = "Analysis stratified by Paratuberculosis (PT) risk levels",
-    x = "IBR Risk Level",
-    y = "Mean Log CBT",
-    color = "Agalassia Risk"
-  ) +  my_theme
+### 1.2 
 
-p2 <- ggplot(dt_analysis, aes(x = RiskIBR, y = LogSCC, color = RiskAGAL, group = RiskAGAL)) +
-  stat_summary(fun = mean, geom = "point", size = 3) +
-  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
-  facet_wrap(~ RiskPT, labeller = label_both) + 
-  scale_color_manual(values = palettes[["RiskAGAL"]]) +
-  labs(
-    title = "Sanitary Synergies: IBR and Agalassia Impact on SCC",
-    subtitle = "Analysis stratified by Paratuberculosis (PT) risk levels",
-    x = "IBR Risk Level",
-    y = "Mean SCC CBT",
-    color = "Agalassia Risk"
-  ) +  my_theme
-
-wrap_plots(c(p1, p2), ncol = 2)
+```{r, exploration.2}
+wrap_plots(
+  ggplot_interaction(
+    dt_analysis, "RiskIBR", "LogCBT", "RiskAGAL", facet_formula = ~ RiskPT, facet_type = "wrap",
+    palette  = palettes[["RiskAGAL"]], title = "Sanitary Synergies: IBR and Agalassia Impact on CBT",
+    subtitle = "Stratified by Paratuberculosis risk", colorlab = "Agalassia Risk"),
+  ggplot_interaction(
+    dt_analysis, "RiskIBR", "LogSCC", "RiskAGAL", facet_formula = ~ RiskPT, facet_type = "wrap",
+    palette  = palettes[["RiskAGAL"]], title = "Sanitary Synergies: IBR and Agalassia Impact on SCC",
+    subtitle = "Stratified by Paratuberculosis risk", colorlab = "Agalassia Risk"),
+  ncol = 2
+  )
 ```
 
 
 
-```{r, exploration.3, echo = FALSE, warning = FALSE, fig.width = 12}
-p1 <- ggplot(dt_analysis, aes(x = RiskIBR, y = LogCBT, color = Season, group = Season)) +
-  stat_summary(fun = mean, geom = "line", linewidth = 1) +
-  stat_summary(fun = mean, geom = "point", size = 2) +
-  facet_grid(RiskAGAL ~ RiskPT, labeller = label_both) +
-  scale_color_manual(values = palettes[["Season"]]) +
-  labs(
-    title = "Seasonal Variation in Multi-Pathological Contexts",
-    subtitle = "Rows: Agalassia Risk | Columns: Paratuberculosis Risk",
-    x = "IBR Risk Level",
-    y = "Mean Log CBT",
-    color = "Season"
-  ) + my_theme
-
-p2 <- ggplot(dt_analysis, aes(x = RiskIBR, y = LogSCC, color = Season, group = Season)) +
-  stat_summary(fun = mean, geom = "line", linewidth = 1) +
-  stat_summary(fun = mean, geom = "point", size = 2) +
-  facet_grid(RiskAGAL ~ RiskPT, labeller = label_both) +
-  scale_color_manual(values = palettes[["Season"]]) +
-  labs(
-    title = "Seasonal Variation in Multi-Pathological Contexts",
-    subtitle = "Rows: Agalassia Risk | Columns: Paratuberculosis Risk",
-    x = "IBR Risk Level",
-    y = "Mean Log SCC",
-    color = "Season"
-  ) + my_theme
-
-wrap_plots(c(p1, p2), ncol = 2)
+```{r, exploration.3}
+wrap_plots(
+  ggplot_interaction(
+    dt_analysis, "RiskIBR", "LogCBT", "Season", facet_formula = RiskAGAL ~ RiskPT, facet_type = "grid",
+    palette  = palettes[["Season"]], title = "Seasonal Variation — CBT",
+    subtitle = "Rows: Agalassia Risk | Columns: PT Risk", colorlab = "Season"),
+  ggplot_interaction(
+    dt_analysis, "RiskIBR", "LogSCC", "Season", facet_formula = RiskAGAL ~ RiskPT, facet_type = "grid",
+    palette  = palettes[["Season"]],  title = "Seasonal Variation — SCC",
+    subtitle = "Rows: Agalassia Risk | Columns: PT Risk", colorlab = "Season"),
+  ncol = 2
+  )
 ```
 
 
 
-```{r, exploration.4, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, exploration.4}
 dt_long <- melt(dt_analysis, measure.vars = c("RiskIBR", "RiskAGAL", "RiskPT"), variable.name = "Disease", value.name = "RiskFactor")
 
-p1 <- ggplot(dt_long, aes(x = Year, y = LogCBT, color = RiskFactor, group = RiskFactor)) +
-  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
-  stat_summary(fun = mean, geom = "point", size = 3) +
-  facet_wrap(~ Disease, scales = "free_y") +
-  scale_color_manual(values = palettes[["RiskIBR"]]) +
-  labs(
-    title = "Temporal Evolution of Sanitary Risks (2016-2020)",
-    subtitle = "Non-parallel trends indicate that the impact of disease varies over time",
-    x = "Year", 
-    y = "Mean Log CBT", 
-    color = "Risk Level"
-  ) + my_theme
-
-p2 <- ggplot(dt_long, aes(x = Year, y = LogSCC, color = RiskFactor, group = RiskFactor)) +
-  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
-  stat_summary(fun = mean, geom = "point", size = 3) +
-  facet_wrap(~ Disease, scales = "free_y") +
-  scale_color_manual(values = palettes[["RiskIBR"]]) +
-  labs(
-    title = "Temporal Evolution of Sanitary Risks (2016-2020)",
-    subtitle = "Non-parallel trends indicate that the impact of disease varies over time",
-    x = "Year", 
-    y = "Mean Log SCC", 
-    color = "Risk Level"
-  ) + my_theme
-
-wrap_plots(c(p1, p2), ncol = 2)
+wrap_plots(
+  ggplot_interaction(
+    dt_long, "Year", "LogCBT", "RiskFactor", facet_formula = ~ Disease, facet_type = "wrap",
+    palette  = palettes[["RiskIBR"]], title = "Temporal Evolution — CBT",
+    subtitle = "Non-parallel trends indicate time-varying disease impact", colorlab = "Risk Level"),
+  ggplot_interaction(
+    dt_long, "Year", "LogSCC", "RiskFactor", facet_formula = ~ Disease, facet_type = "wrap",
+    palette  = palettes[["RiskIBR"]], title = "Temporal Evolution — SCC",
+    subtitle = "Non-parallel trends indicate time-varying disease impact", colorlab = "Risk Level"),
+  ncol = 2
+  )
 ```
 
 
 
-```{r, exploration.5, echo = FALSE, warning = FALSE, fig.width = 12}
-p1 <- ggplot(dt_long, aes(x = SCCbins, y = LogCBT, color = RiskFactor, group = RiskFactor)) +
-  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
-  stat_summary(fun = mean, geom = "point", size = 3) +
-  facet_wrap(~ Disease) +
-  scale_color_manual(values = palettes[["RiskIBR"]]) +
-  labs(
-    title = "Sanitary Status by Somatic Cell Count (SCC) Interaction",
-    subtitle = "Varying slopes indicate that pathogens amplify the effect of mastitis on CBT",
-    x = "LogSCC Quintiles", 
-    y = "Mean Log CBT",
-    color = "Risk Level"
-  ) + my_theme
-
-p2 <- ggplot(dt_long, aes(x = CBTbins, y = LogSCC, color = RiskFactor, group = RiskFactor)) +
-  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
-  stat_summary(fun = mean, geom = "point", size = 3) +
-  facet_wrap(~ Disease) +
-  scale_color_manual(values = palettes[["RiskIBR"]]) +
-  labs(
-    title = "Sanitary Status by Somatic Cell Count (CBT) Interaction",
-    subtitle = "Varying slopes indicate that pathogens amplify the effect of mastitis on SCC",
-    x = "LogCBT Quintiles", 
-    y = "Mean Log SCC",
-    color = "Risk Level"
-  ) + my_theme
-
-wrap_plots(c(p1, p2), ncol = 2)
+```{r, exploration.5}
+wrap_plots(
+  ggplot_interaction(
+    dt_long, "SCCbins", "LogCBT", "RiskFactor", facet_formula = ~ Disease, facet_type = "wrap",
+    palette  = palettes[["RiskIBR"]], title = "SCC Interaction — CBT",
+    subtitle = "Varying slopes indicate pathogen amplification of mastitis", xlab = "LogSCC Quintiles", colorlab = "Risk Level"),
+  ggplot_interaction(
+    dt_long, "CBTbins", "LogSCC", "RiskFactor", facet_formula = ~ Disease, facet_type = "wrap",
+    palette  = palettes[["RiskIBR"]], title = "CBT Interaction — SCC",
+    subtitle = "Varying slopes indicate pathogen amplification of mastitis", xlab = "LogCBT Quintiles", colorlab = "Risk Level"),
+  ncol = 2
+  )
 ```
 
-### 1.2 Descriptive Analysis
+### 1.3 Descriptive Analysis
 
 Analyzing the shape of the distributions is essential to justify the statistical approach used.
 
@@ -240,36 +181,16 @@ Analyzing the shape of the distributions is essential to justify the statistical
  
 - Log TBC (Total Bacterial Count): The distribution significantly deviates from normality. A marked multimodality is observed, with frequent peaks in the low-to-mid range and a long tail (skewness) towards high values (above 6.0 log). This irregularity justifies the adoption of more complex models, capable of modeling not only the mean but also the shape and variability of the distribution.
 
-```{r, exploration.6, echo = FALSE, warning = FALSE, fig.width = 12}
-mu <- mean(data$LogCBT, na.rm = TRUE)
-var <- var(data$LogCBT, na.rm = TRUE)
+```{r, exploration.6}
+p1 <- ggplot_normal_distribution(data, "LogCBT", "Observed vs Normal — Log CBT")
+p2 <- ggplot_normal_distribution(data, "LogSCC", "Observed vs Normal — Log SCC")
 
-x <- seq(min(data$LogCBT, na.rm = TRUE), max(data$LogCBT, na.rm = TRUE), length.out = 500)
-df <- data.frame(x = x, y = dnorm(x, mean = mu, sd = sqrt(var)))
-
-p1 <- ggplot(data, aes(x = LogCBT)) +
-  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
-  geom_line(data = df, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
-  labs(title = "Observed distribution vs. Normal distribution",
-       x = "Log CBT",
-       y = "Desnity"
-  ) + my_theme
-
-mu <- mean(data$LogSCC, na.rm = TRUE)
-var <- var(data$LogSCC, na.rm = TRUE)
-
-x <- seq(min(data$LogSCC, na.rm = TRUE), max(data$LogSCC, na.rm = TRUE), length.out = 500)
-df <- data.frame(x = x, y = dnorm(x, mean = mu, sd = sqrt(var)))
-
-p2 <- ggplot(data, aes(x = LogSCC)) +
-  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#003366", color = "#011", alpha = 0.6) +
-  geom_line(data = df, aes(x = x, y = y), color = "#9B1B30", linewidth = 1) +
-  labs(title = "Observed distribution vs. Normal distribution",
-       x = "Log SCC",
-       y = "Density"
-  ) + my_theme
-
-wrap_plots(c(p1, p2), ncol = 2)
+wrap_plots(p1, p2, ncol = 2) +
+  plot_annotation(
+    title = "Marginal distributions of milk quality indicators",
+    theme = theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 14)
+    )
+  )
 ```
 
 Stratified density plots allow visualization of how the risk profile shifts the entire logarithmic TBC distribution.
@@ -284,8 +205,8 @@ Stratified density plots allow visualization of how the risk profile shifts the 
 
 - Seasonality: The seasonal effect is confirmed, with the "Winter" distribution concentrated at lower values and the "Summer" distribution more spread toward higher values.
 
-```{r, exploration.7, echo = FALSE, warning = FALSE, fig.width = 12}
-plots_CBT <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogCBT", y, palettes[[y]], save = FALSE))
+```{r, exploration.7}
+plots_CBT <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogCBT", y, palettes[[y]]))
 wrap_plots(plots_CBT, ncol = 2)
 ```
 
@@ -293,7 +214,7 @@ wrap_plots(plots_CBT, ncol = 2)
 
 The comparison with SCC reveals a different dynamic than bacterial count. Unlike TBC, SCC distributions across risk factors appear much more homogeneous and overlapping. No major shifts in density peaks are observed between High and Low risk classes, except for a slight upward tendency for Agalactiae risk. This suggests that while herd health plans (PT, IBR, AGAL) have a direct and pronounced impact on milk bacterial contamination (TBC), their effect on somatic cells (SCC) is more subtle or mediated by other management factors not represented in these plots.
 
-```{r, exploration.8, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, exploration.8}
 plots_SCC <- lapply(variables, function(y) ggplot_density(dt_analysis, "LogSCC", y, palettes[[y]], save = FALSE))
 wrap_plots(plots_SCC, ncol = 2)
 ```
@@ -414,7 +335,7 @@ This specification allows the model to capture both fixed effects associated wit
 
 ### Model structure selection
 
-```{r, analysis.1, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, analysis.1}
 modCBT <- lm(LogCBT ~ (Season + Year + LogSCC + RiskIBR + RiskAGAL + RiskPT)^2, data = dt_analysis)
 MASS::stepAIC(modCBT)
 
@@ -422,67 +343,127 @@ modSCC <- lm(LogSCC ~ (Season + Year + LogCBT + RiskIBR + RiskAGAL + RiskPT)^2, 
 MASS::stepAIC(modSCC)
 ```
 
-```{r, analysis.2, echo = FALSE, warning = FALSE, fig.width = 12}
-if (!file.exists("data/results/gam models.rds")) {
-  gam_results <- list(
-    LINmodCBT = bam(
-      formula = LogCBT ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 + 
+```{r, analysis.2}
+if (TRAIN_MODELS) {
+  if (!file.exists("data/results/gam models.rds")) {
+    gam_results <- list(
+      LINmodCBT = bam(
+        formula = LogCBT ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 + 
+        Season:LogSCC + Season:RiskIBR + Season:RiskPT + LogSCC:RiskIBR + LogSCC:RiskPT +
+        s(YearNum, bs = "ps", by = Season) + s(YearNum, bs = "ps", by = RiskIBR) + s(YearNum, bs = "ps", by = RiskPT),
+        data = dt_analysis, method = "ML"
+      ),
+
+      LINmodSCC = bam(LogSCC ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
+        Season:LogCBT + Season:RiskIBR + Season:RiskPT + LogCBT:RiskIBR + LogCBT:RiskPT +
+        s(YearNum, bs = "ps", by = Season) + s(YearNum, bs = "ps", by = RiskIBR) + s(YearNum, bs = "ps", by = RiskPT),
+        data = dt_analysis, method = "ML"
+      )
+    )
+
+    saveRDS(gam_results, file = "data/results/gam models.rds")
+  }
+
+  if (!file.exists("data/results/gamm4 models.rds")) {
+    plan(multisession, workers = parallel::detectCores() - 1)
+
+    gamm4_results <- future_lapply(
+      models_gamm4, function(mod) {
+        run_gamm4_safely(
+          model = mod,               # model
+          train_data = dt_analysis   # data
+        )
+      },
+      future.packages = c("gamm4", "checkmate"),
+      future.seed = TRUE,
+      future.globals = list(
+        run_gamm4_safely = run_gamm4_safely,
+        dt_analysis = dt_analysis
+      )
+    )
+
+    saveRDS(gamm4_results, file = "data/results/gamm4 models.rds")
+  }
+
+  if (!file.exists("data/results/gamlss models.rds")) {
+    plan(multisession, workers = parallel::detectCores() - 1)
+
+    gamlss_results <- future_lapply(
+      models_gamlss, function(mod) {
+        run_gamlss_safely(
+          model = mod,
+          train_data = dt_analysis
+        )
+      },
+      future.packages = c("gamlss", "checkmate", "nlme"),
+      future.seed    = TRUE,
+      future.globals = list(
+        run_gamlss_safely = run_gamlss_safely,
+        dt_analysis = dt_analysis
+      )
+    )
+
+    saveRDS(gamlss_results, file = "data/results/gamlss models.rds")
+  }
+
+  gam_results <- readRDS(file = "data/results/gam models.rds")
+  gamm4_results <- readRDS(file = "data/results/gamm4 models.rds")
+  gamlss_results <- readRDS(file = "data/results/gamlss models.rds")
+}
+```
+
+```{r, prediction.1}
+if (!file.exists("data/prediction/final models.rds")) {
+  gamlss_top_models <- list(
+    BCTYear.FarmCBT = gamlss(
+      formula = LogCBT ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 +
       Season:LogSCC + Season:RiskIBR + Season:RiskPT + LogSCC:RiskIBR + LogSCC:RiskPT +
-      s(YearNum, bs = "ps", by = Season) + s(YearNum, bs = "ps", by = RiskIBR) + s(YearNum, bs = "ps", by = RiskPT),
-      data = dt_analysis, method = "ML"
+      pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ YearNum|Farm),
+      sigma.formula = ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 +
+      Season:LogSCC + Season:RiskIBR + Season:RiskPT + LogSCC:RiskIBR + LogSCC:RiskPT +
+      pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
+      family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"),
+      control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30), data = dt_analysis
     ),
 
-    LINmodSCC = bam(LogSCC ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
+    ST2Year.FarmCBT = gamlss(
+      formula = LogCBT ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 +
+      Season:LogSCC + Season:RiskIBR + Season:RiskPT + LogSCC:RiskIBR + LogSCC:RiskPT +
+      pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ YearNum|Farm),
+      sigma.formula = ~ Season + LogSCC + (RiskIBR + RiskAGAL + RiskPT)^2 +
+      Season:LogSCC + Season:RiskIBR + Season:RiskPT + LogSCC:RiskIBR + LogSCC:RiskPT +
+      pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
+      family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"),
+      control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30), data = dt_analysis
+    ),
+
+    BCTYear.FarmSCC = gamlss(
+      formula = LogSCC ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
       Season:LogCBT + Season:RiskIBR + Season:RiskPT + LogCBT:RiskIBR + LogCBT:RiskPT +
-      s(YearNum, bs = "ps", by = Season) + s(YearNum, bs = "ps", by = RiskIBR) + s(YearNum, bs = "ps", by = RiskPT),
-      data = dt_analysis, method = "ML"
+      pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ YearNum|Farm),
+      sigma.formula = ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
+      Season:LogCBT + Season:RiskIBR + Season:RiskPT + LogCBT:RiskIBR + LogCBT:RiskPT +
+      pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
+      family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"),
+      control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30), data = dt_analysis
+    ),
+
+    ST2Year.FarmSCC = gamlss(
+      formula = LogSCC ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
+      Season:LogCBT + Season:RiskIBR + Season:RiskPT + LogCBT:RiskIBR + LogCBT:RiskPT +
+      pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ YearNum|Farm),
+      sigma.formula = ~ Season + LogCBT + (RiskIBR + RiskAGAL + RiskPT)^2 +
+      Season:LogCBT + Season:RiskIBR + Season:RiskPT + LogCBT:RiskIBR + LogCBT:RiskPT +
+      pb(YearNum, by = Season) + pb(YearNum, by = RiskIBR) + pb(YearNum, by = RiskPT) + re(random = ~ 1|Farm),
+      family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"),
+      control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30), data = dt_analysis
     )
   )
 
-  saveRDS(gam_results, file = "data/results/gam models.rds")
+  saveRDS(gamlss_top_models, file = "data/prediction/final models.rds")
 }
 
-if (!file.exists("data/results/gamm4 models.rds")) {
-  plan(multisession, workers = parallel::detectCores() - 1)
-
-  gamm4_results <- future_lapply(
-    X = models_gamm4,
-    FUN = function(mod) {
-      run_gamm4_safely(
-        model = mod,  # model
-        data = data   # data
-      )
-    },
-    future.packages = "gamm4",
-    future.seed = TRUE,
-    future.globals = list(run_gamm4_safely = run_gamm4_safely, data = dt_analysis)
-  )
-
-  saveRDS(gamm4_results, file = "data/results/gamm4 models.rds")
-}
-
-if (!file.exists("data/results/gamlss models.rds")) {
-  plan(multisession, workers = parallel::detectCores() - 1)
-
-  gamlss_results <- future_lapply(
-    X = models_gamlss,
-    FUN = function(mod) {
-      run_gamlss_safely(
-        model = mod,  # model
-        data = data   # data
-      )
-    },
-    future.packages = "gamlss",
-    future.seed = TRUE,
-    future.globals = list(run_model_safely = run_model_safely, data = dt_analysis)
-  )
-
-  saveRDS(gamlss_results, file = "data/results/gamlss models.rds")
-}
-
-gam_results <- readRDS(file = "data/results/gam models.rds")
-gamm4_results <- readRDS(file = "data/results/gamm4 models.rds")
-gamlss_results <- readRDS(file = "data/results/gamlss models.rds")
+gamlss_top_models <- readRDS("data/prediction/final models.rds")
 ```
 
 ### 3.1 Log CBT Models
@@ -490,8 +471,9 @@ gamlss_results <- readRDS(file = "data/results/gamlss models.rds")
 Among the different model architectures tested for the estimation of bacterial load (Log TBC), it is evident that increasing model complexity corresponds to a substantial reduction in both the AIC (Akaike Information Criterion) and BIC (Bayesian Information Criterion). These criteria respectively provide a measure of model goodness-of-fit and a penalty for excessive parameterization.
 The dramatic reduction in both criteria (from an AIC of 91468.97 for the linear model to -1906.04 for the GAMLSS ST2 model) indicates that simple linear models and even linear mixed models (LMMs) with random intercepts and random slopes struggle to adequately capture the underlying structure of the data. In contrast, the flexibility of GAMLSS models allows for a substantially improved fit to the observed data.
 
-```{r, results.1, echo = FALSE, warning = FALSE, fig.width = 12}
-objects_CBT <- list(
+```{r, results.1}
+if (!file.exists("data/tables/CBT models selection criteria.rds")) {
+  objects_CBT <- list(
   "Linear Model" = gam_results$LINmodCBT,
   "Linear Mixed Model 1|Farm" = gamm4_results$LINmixedFarmCBT$mer,
   "Linear Mixed Model Year|Farm" = gamm4_results$LINmixedYear.FarmCBT$mer,
@@ -503,7 +485,10 @@ objects_CBT <- list(
   "GAMLSS Skew t distribution type 2 Year|Farm" = gamlss_results$ST2Year.FarmCBT
   )
 
-model_selection_criteria(objects_CBT)
+  model_selection_criteria(objects_CBT, tab_name = "CBT models")
+}
+
+(tab <- readRDS("data/tables/CBT models selection criteria.rds"))
 ```
 
 From a methodological perspective, randomized quantile residuals were used for all models in order to verify whether the underlying distributional assumptions were satisfied. If the model is correctly specified, these residuals should approximately follow a normal distribution.
@@ -517,15 +502,15 @@ Beside the drastic improvement in the AIC and BIC values, Models based on the Bo
 Filliben Correlation Coefficient:
 The goodness of this fit is further confirmed by the Filliben correlation coefficient, whose values range between 0 and 1. For both GAMLSS distributions, the coefficient exceeds 0.99, indicating that the residual distribution closely follows the bisector of the Q–Q plot.
 
-```{r, results.2, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, results.2}
 ggplot_gamlss_diagnostics(
-  gamlss_results$BCTYear.FarmCBT,
-  summaries = FALSE, model = "BCTYear.Farm - CBT", save = FALSE
+  gamlss_top_models$BCTYear.FarmCBT,
+  summaries = FALSE, model = "BCTYear.Farm - CBT"
   )
 
 ggplot_gamlss_diagnostics(
-  gamlss_results$ST2Year.FarmCBT,
-  summaries = FALSE, model = "ST2Year.Farm - CBT", save = FALSE
+  gamlss_top_models$ST2Year.FarmCBT,
+  summaries = FALSE, model = "ST2Year.Farm - CBT"
   )
 ```
 
@@ -534,7 +519,7 @@ Graphical diagnostics further support the conclusions derived from the numerical
 The final model adopts a Skew t Azzalini Type 2 (ST2) distribution, selected for its ability to simultaneously model the location ($μ$), scale ($σ$), skewnes ($ν$), and kurtosis ($τ$) parameters of the response distribution. The model architecture includes a mixed-effects structure, with a random intercept for Farm and a random slope for Year_num, allowing the model to capture both farm-level management heterogeneity and temporal dynamics across years. The estimated values of the shape parameters, $ν$ = 2.48 and $τ$ = 3.15, indicate that the model effectively accounts for the positive skewness and heavy tails inherent in the distribution of bacterial load (Log TBC). By modeling these characteristics explicitly, the ST2 distribution reduces the distorting influence of extreme observations and outliers, leading to more stable and reliable parameter estimates.
 
 ```{r, results.3, echo = FALSE, warning = FALSE, fig.width = 12}
-extract_gamlss_fixed(gamlss_results$ST2Year.FarmCBT, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 1)
+extract_gamlss_fixed(gamlss_top_models$ST2Year.FarmCBT, n_mu = 37, n_sigma = 37, n_nu = 1, n_tau = 1)
 ```
 
 1. Analysis of the Mean Coefficients ($μ$)
@@ -562,8 +547,8 @@ The $σ$ parameter models the dispersion of the response variable and therefore 
 
 - Summer Effect: During summer, in addition to an increase in the mean value, a substantial increase in variability is observed (+0.1891). This suggests that summer milk is not only characterized by higher bacterial loads but is also more prone to sudden and unpredictable spikes.
 
-```{r, results.4, echo = FALSE, warning = FALSE, fig.width = 12}
-extract_random_variance(gamlss_results$ST2Year.FarmCBT)
+```{r, results.4}
+extract_random_variance(gamlss_top_models$ST2Year.FarmCBT)
 ```
 
 3. Variance Decomposition (Random Effects)
@@ -603,8 +588,9 @@ Farm identity remains a significant component of variability (ICC ≈ 7.1%), hig
 The comparative analysis of models for Somatic Cell Count (Log SCC) reveals a particularly interesting scenario, with several key differences compared to the results obtained for Total Bacterial Count (Log TBC).
 Although the general pattern of model improvement remains similar, the statistical nature of SCC, which is closer to a normal distribution but characterized by extremely heavy tails, makes the diagnostic results even more striking.
 
-```{r, results.5, echo = FALSE, warning = FALSE, fig.width = 12}
-objects_SCC <- list(
+```{r, results.5}
+if (!file.exists("data/tables/SCC models selection criteria.rds")) {
+  objects_SCC <- list(
   "Linear Model" = gam_results$LINmodSCC,
   "Linear Mixed Model 1|Farm" = gamm4_results$LINmixedFarmSCC$mer,
   "Linear Mixed Model Year|Farm" = gamm4_results$LINmixedYear.FarmSCC$mer,
@@ -616,7 +602,10 @@ objects_SCC <- list(
   "GAMLSS Skew t distribution type 2 Year|Farm" = gamlss_results$ST2Year.FarmSCC
   )
 
-model_selection_criteria(objects_SCC)
+  model_selection_criteria(objects_SCC, tab_name = "SCC models")
+}
+
+(tab <- readRDS("data/tables/SCC models selection criteria.rds"))
 ```
 
 A clear progression in the reduction of AIC and BIC values is observed as model structures evolve toward the GAMLSS framework.
@@ -636,15 +625,15 @@ Finally, the Filliben correlation coefficient, equal to 0.9975, confirms an almo
 Methodological Considerations (BCT vs ST2):
 For SCC data, the Box–Cox t (BCT) distribution appears to offer a slight methodological advantage over the ST2 distribution. The BCT model provides a slightly more efficient description of the data-generating process. The residual skewness is closer to zero compared to the ST2 model (−0.02 vs −0.13). Overall, the BCT distribution is particularly effective when the original data are strictly positive and exhibit an intrinsic power-transformation structure, a common characteristic of biological cell-count data such as SCC.
 
-```{r, results.6, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, results.6}
 ggplot_gamlss_diagnostics(
-  gamlss_results$BCTYear.FarmSCC,
-  summaries = FALSE, model = "BCTYear.Farm - SCC", save = FALSE
+  gamlss_top_models$BCTYear.FarmSCC,
+  summaries = FALSE, model = "BCTYear.Farm - SCC"
   )
 
 ggplot_gamlss_diagnostics(
-  gamlss_results$ST2Year.FarmSCC,
-  summaries = FALSE, model = "ST2Year.Farm - SCC", save = FALSE
+  gamlss_top_models$ST2Year.FarmSCC,
+  summaries = FALSE, model = "ST2Year.Farm - SCC"
   )
 ```
 
@@ -653,8 +642,8 @@ The decision to retain these observations, despite the resulting imperfections i
 
 As a result, Model 7 (BCT with random slope Year | Farm) is identified as the gold standard specification for SCC analysis. This model provides robust estimates of sanitary risk factors while remaining resilient to the heavy tails present in the empirical distribution. Overall, the model remains optimal, as confirmed by the statistical properties of the residuals.
 
-```{r, results.7, echo = FALSE, warning = FALSE, fig.width = 12}
-extract_gamlss_fixed(gamlss_results$BCTYear.FarmSCC, n_mu = 13, n_sigma = 13, n_nu = 1, n_tau = 1)
+```{r, results.7}
+extract_gamlss_fixed(gamlss_top_models$BCTYear.FarmSCC, n_mu = 37, n_sigma = 37, n_nu = 1, n_tau = 1)
 ```
 
 1. Analysis of the Mean Coefficients ($μ$)
@@ -680,8 +669,8 @@ Risk Control: Low and Medium PT risk significantly reduce $σ$ (up to −0.20 fo
 
 IBR Paradox: Low IBR risk slightly increases $σ$ (+0.04), suggesting a wider variability in immune response among disease-free or controlled herds.
 
-```{r, results.8, echo = FALSE, warning = FALSE, fig.width = 12}
-extract_random_variance(gamlss_results$BCTYear.FarmSCC)
+```{r, results.8}
+extract_random_variance(gamlss_top_models$BCTYear.FarmSCC)
 ```
 
 4. Random Effects and Variance Decomposition
@@ -713,13 +702,13 @@ The BCT model demonstrates that udder health (SCC) is a multifactorial process, 
 
 For a more intuitive understanding of the model results, the following coefficient plot displays the $μ$ coefficients for both models.
 
-```{r, results.9, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, results.9}
 models <- list(
-  "Skew t distribution type 2 Year|Farm for Log TBC" = gamlss_results$ST2Year.FarmCBT,
-  "Skew t distribution type 2 Year|Farm for Log SCC" = gamlss_results$ST2Year.FarmSCC
+  "Skew t distribution type 2 Year|Farm for Log TBC" = gamlss_top_models$ST2Year.FarmCBT,
+  "Box-Cox t distribution Year|Farm for Log SCC" = gamlss_top_models$BCTYear.FarmSCC
   )
 
-ggplot_coefficients(models, model = "Skew t distribution type 2 Year|Farm")
+ggplot_coefficients(models, model = "Model")
 ```
 
 ## **Model Validation and Residual Analysis (Test Set)**
@@ -728,7 +717,7 @@ The predictive performance of the moodels was evaluated using an independent dat
 
 ### 4.1.1 Log TBC Model Validation
 
-```{r, testing.1, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, testing.1}
 set.seed(123)
 
 idx <- dt_analysis[, .(rowID = .I[sample(.N, max(1, round(.N * 0.3)))]), by = Farm]$rowID
@@ -809,7 +798,7 @@ When sanitary impairment is clear and consistent, the risk signal received by th
 
 ### 4.2.1 Log SCC Model Validation
 
-```{r, testing.2, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, testing.2}
 validationSCC <- evaluate_gamlss_performance(gamlss_test_results$testmodSCCFarm, test_data = dt_test, train_data = dt_train, target_var = "LogSCC")
 
 validationSCC$metrics
@@ -840,7 +829,7 @@ The effectiveness of the developed models was evaluated not only through goodnes
 
 ### 5.1.1 Log TBC Fixed-Effects Model Validation
 
-```{r, testing.3, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, testing.3}
 validationCBTfixed <- evaluate_gamlss_performance(gamlss_test_results$testmodCBT, test_data = test_ignote, train_data = train_ignote, target_var = "LogCBT")
 
 validationCBTfixed$metrics
@@ -853,35 +842,13 @@ Overall, without incorporating the random effects, the model loses almost all pr
 
 The model for Somatic Cell Count (LogSCC) demonstrates exceptional robustness even without random effects. The error metrics confirm a high predictive accuracy:
 
-```{r, testing.4, echo = FALSE, warning = FALSE, fig.width = 12}
+```{r, testing.4}
 validationSCCfixed <- evaluate_gamlss_performance(gamlss_test_results$testmodSCC, test_data = test_ignote, train_data = train_ignote, target_var = "LogSCC")
 
 validationSCCfixed$metrics
 ```
 
 These results suggest that the inflammatory status of the herd is directly and predictably governed by the sanitary risk factors (PT, IBR, Agalactiae). The average error in the rare severe cases (1.2 log units) is attributable to acute, unpredictable clinical events, but these do not compromise the model’s ability to capture the general epidemiological trend.
-
-```{r, prediction.1, echo = FALSE, warning = FALSE, fig.width = 12}
-if (!file.exists("data/final models for prediction/final models.rds")) {
-  gamlss_final_models <- list(
-    ST2Year.FarmCBT = gamlss(
-      formula = LogCBT ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
-      sigma.formula = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
-      family = ST2(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"),
-      control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30), data = dt_analysis
-    ),
-
-    BCTYear.FarmSCC = gamlss(
-      formula = LogSCC ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ YearNum|Farm),
-      sigma.formula = ~ Season + Year + RiskIBR + RiskAGAL + RiskPT + re(random = ~ 1|Farm),
-      family = BCT(mu.link = "identity", sigma.link = "log", nu.link = "identity", tau.link = "log"),
-      control = gamlss.control(trace = FALSE, c.crit = 0.01, n.cyc = 30), data = dt_analysis
-    )
-  )
-
-  saveRDS(gamlss_final_models, file = "data/final models for prediction/final models.rds")
-}
-```
 
 ## **Conclusions**
 
